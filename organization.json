@@ -1,0 +1,26 @@
+{
+	"name": "ContosoCars",
+	"location": "westeurope",
+	"devboxes": [
+		{
+			"name": "Win11Box",
+			"image": "microsoftwindowsdesktop_windows-ent-cpc_win11-21h2-ent-cpc-os",
+			"sku": "general_a_8c32gb_v1",
+			"storage": "ssd_1024gb"
+		}
+	],
+	"environments": [
+		"SBX",
+		"DEV"
+	],
+	"catalogs":[
+		{
+			"name": "Public Samples",
+			"type": "gitHub",
+			"uri": "https://github.com/Azure/deployment-environments.git",
+			"branch": "main",
+			"path": "/Environments",
+			"secret": "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"
+		}
+	]
+}
