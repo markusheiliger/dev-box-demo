@@ -10,6 +10,8 @@ param OrganizationJson object
 var DevBoxes = contains(OrganizationJson, 'devboxes') ? OrganizationJson.devboxes : []
 var EnvTypes = contains(OrganizationJson, 'environments') ? OrganizationJson.environments : []
 var Catalogs = contains(OrganizationJson, 'catalogs') ? OrganizationJson.catalogs : []
+var CatalogsGitHub = filter(Catalogs, Catalog => Catalog.type == 'gitHub')
+var CatalogsAdoGit = filter(Catalogs, Catalog => Catalog.type == 'adoGit')
 
 // ============================================================================================
 
@@ -155,7 +157,7 @@ resource vaultSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = [for (Cata
   }
 }]
 
-resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-preview' = [for (Catalog, CatalogIndex) in Catalogs : if (Catalog.type == 'gitHub') {
+resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-preview' = [for (Catalog, CatalogIndex) in CatalogsGitHub : {
   name: '${Catalog.name}'
   parent: devCenter
   properties: {
@@ -168,7 +170,7 @@ resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-previ
   }
 }]
 
-resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-preview' = [for (Catalog, CatalogIndex) in Catalogs : if (Catalog.type == 'adoGit') {
+resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-preview' = [for (Catalog, CatalogIndex) in CatalogsAdoGit : {
   name: '${Catalog.name}'
   parent: devCenter
   properties: {

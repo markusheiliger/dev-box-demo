@@ -15,7 +15,7 @@
 	],
 	"catalogs":[
 		{
-			"name": "Public Samples",
+			"name": "Samples",
 			"type": "gitHub",
 			"uri": "https://github.com/Azure/deployment-environments.git",
 			"branch": "main",

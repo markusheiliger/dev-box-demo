@@ -1,6 +1,8 @@
 #!/bin/bash
 
+SUBSCRIPTION=$(az account show --query id -o tsv | dos2unix)
 RESET='false'
+DUMP='false'
 
 usage() { 
 	echo "Usage: $0"
@@ -8,12 +10,16 @@ usage() {
 	exit 1; 
 }
 
-while getopts 'o:p:r' OPT; do
+while getopts 's:o:p:d:r' OPT; do
     case "$OPT" in
+		s) 
+			SUBSCRIPTION="${OPTARG}" ;;
 		o)
 			ORGANIZATION="${OPTARG}" ;;
 		p)
 			PROJECT="${OPTARG}" ;;
+		d)
+			DUMP='true' ;;
         r) 
 			RESET='true' ;;
 		*) 
@@ -31,7 +37,7 @@ clear
 	&& echo "Could not find project definition file: $PROJECT" \
 	&& exit 1
 
-az account set --subscription 4e1bd84c-4a2c-4b00-8392-cd0f8b354000 -o none \
+az account set --subscription $SUBSCRIPTION -o none \
 	&& echo "Selected subscription $(az account show --query name)"
 
 if [ "$RESET" = 'true' ]; then
@@ -47,6 +53,16 @@ if [ "$RESET" = 'true' ]; then
 		echo -n "." && sleep 5
 	done && echo " done"
 
+	for KEYVAULT in $(az keyvault list-deleted --query [].name -o tsv | dos2unix); do
+		echo "Purging deleted key vault '$KEYVAULT' ..."
+		az keyvault purge --name $KEYVAULT --no-wait
+	done
+
+	echo -n "Waiting for purging deleted key vaults ..."
+
+	while [ ! -z "$(az keyvault list-deleted --query [].name -o tsv | dos2unix)" ]; do
+		echo -n "." && sleep 5
+	done && echo " done"	
 fi
 
 UPN=$(grep -Eom1 "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" $PROJECT)
@@ -65,7 +81,11 @@ while [ ! -z "$UPN" ]; do
 
 done
 
-az bicep build --file ./resources/main.bicep --outfile ./deploy.json
+if [ "$DUMP" = 'true' ]; then
+	az bicep build --file ./resources/main.bicep --outfile ./deploy.json
+else
+	[ -f ./deploy.json ] && rm -f ./deploy.json
+fi
 
 az deployment sub create \
 	--name $(uuidgen) \
