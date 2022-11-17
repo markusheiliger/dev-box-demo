@@ -8,5 +8,15 @@
 		"22adab23-8a6b-4346-8c97-858e8ed5bc7f",
 		"e40cb79e-413f-4c73-9ce1-7fbf52f33841",
 		"565620c9-6234-4392-b043-9a8f5ab0c5d8"
+	],
+	"environments":[
+		{
+			"name": "SBX",
+			"subscription": ""
+		},
+		{
+			"name": "DEV",
+			"subscription": ""
+		}
 	]
 }

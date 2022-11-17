@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.12.40.16777",
+      "templateHash": "4734890428844039631"
+    }
+  },
+  "parameters": {
+    "DatabaseType": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Standard",
+        "Full"
+      ]
+    },
+    "DatabaseUsername": {
+      "type": "string"
+    },
+    "DatabasePassword": {
+      "type": "secureString"
+    }
+  },
+  "variables": {
+    "ResourceLocation": "[resourceGroup().location]",
+    "ResourcePrefix": "[uniqueString(resourceGroup().id)]",
+    "SampleName": "[format('WideWorldImporters{0}', if(equals(parameters('DatabaseType'), 'Standard'), 'Std', parameters('DatabaseType')))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2021-11-01",
+      "name": "[format('{0}-SQL', variables('ResourcePrefix'))]",
+      "location": "[variables('ResourceLocation')]",
+      "properties": {
+        "administratorLogin": "[parameters('DatabaseUsername')]",
+        "administratorLoginPassword": "[parameters('DatabasePassword')]",
+        "version": "12.0",
+        "publicNetworkAccess": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2021-11-01",
+      "name": "[format('{0}/{1}', format('{0}-SQL', variables('ResourcePrefix')), variables('SampleName'))]",
+      "location": "[variables('ResourceLocation')]",
+      "sku": {
+        "name": "Basic",
+        "tier": "Basic",
+        "capacity": 5
+      },
+      "properties": {
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "maxSizeBytes": 104857600,
+        "sampleName": "[variables('SampleName')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
+      ]
+    }
+  ]
+}

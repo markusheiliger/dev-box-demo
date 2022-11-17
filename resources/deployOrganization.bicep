@@ -3,21 +3,73 @@ targetScope = 'resourceGroup'
 // ============================================================================================
 
 @description('The organization defintion to process')
-param OrganizationJson object
+param OrganizationDefinition object
+
+@description('The Windows 365 principal id')
+param Windows365PrinicalId string
 
 // ============================================================================================
 
-var DevBoxes = contains(OrganizationJson, 'devboxes') ? OrganizationJson.devboxes : []
-var EnvTypes = contains(OrganizationJson, 'environments') ? OrganizationJson.environments : []
-var Catalogs = contains(OrganizationJson, 'catalogs') ? OrganizationJson.catalogs : []
+var DevBoxes = contains(OrganizationDefinition, 'devboxes') ? OrganizationDefinition.devboxes : []
+var EnvTypes = contains(OrganizationDefinition, 'environments') ? OrganizationDefinition.environments : []
+var Catalogs = contains(OrganizationDefinition, 'catalogs') ? OrganizationDefinition.catalogs : []
 var CatalogsGitHub = filter(Catalogs, Catalog => Catalog.type == 'gitHub')
 var CatalogsAdoGit = filter(Catalogs, Catalog => Catalog.type == 'adoGit')
 
 // ============================================================================================
 
+resource workspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
+  name: OrganizationDefinition.name
+  location: OrganizationDefinition.location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 90
+    forceCmkForQuery: false
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+    features: {
+      disableLocalAuth: false
+      enableLogAccessUsingOnlyResourcePermissions: true
+    }
+    workspaceCapping: {
+      dailyQuotaGb: -1
+    }
+  }
+}
+
+resource workspaceLA 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: OrganizationDefinition.name
+  scope: workspace
+  properties: {
+    workspaceId: workspace.id
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c' // https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#contributor
+}
+
+resource readerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'acdd72a7-3385-48ef-bd42-f606fba81ae7' // https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#reader
+}
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-01-01' = {
-  name: OrganizationJson.name
-  location: OrganizationJson.location
+  name: OrganizationDefinition.name
+  location: OrganizationDefinition.location
   properties: {
     addressSpace: {
       addressPrefixes: [
@@ -27,73 +79,31 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-01-01' = {
   }
 }
 
-resource resourceSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' = {
-  parent: virtualNetwork
-  name: 'ResourceSubnet'
+resource virtualNetworkLA 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: '${OrganizationDefinition.name}-LA'
+  scope: virtualNetwork
   properties: {
-    addressPrefix: '10.0.0.0/27'
-    privateEndpointNetworkPolicies: 'Disabled'
+    workspaceId: workspace.id
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
   }
-} 
+}
 
-resource factorySubnet 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' = {
-  parent: virtualNetwork
-  name: 'FactorySubnet'
-  properties: {
-    addressPrefix: '10.0.0.32/27'
-    privateLinkServiceNetworkPolicies: 'Disabled'
-  }
-  dependsOn: [
-    resourceSubnet // enforce sequential provisioning to avoid conflicts
-  ]
-} 
-
-resource azureBastionSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' = {
-  parent: virtualNetwork
-  name: 'AzureBastionSubnet'
-  properties: {
-    addressPrefix: '10.0.0.64/27'
-    privateEndpointNetworkPolicies: 'Disabled'
-    privateLinkServiceNetworkPolicies: 'Disabled'
-  }
-  dependsOn: [
-    factorySubnet // enforce sequential provisioning to avoid conflicts
-  ]
-} 
-
-resource gatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' = {
-  parent: virtualNetwork
-  name: 'GatewaySubnet'
-  properties: {
-    addressPrefix: '10.0.0.96/27'
-  }
-  dependsOn: [
-    azureBastionSubnet // enforce sequential provisioning to avoid conflicts
-  ]
-} 
-
-resource azureFirewallSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-01-01' = {
-  parent: virtualNetwork
-  name: 'AzureFirewallSubnet'
-  properties: {
-    addressPrefix: '10.0.0.128/26'
-  }
-  dependsOn: [
-    gatewaySubnet // enforce sequential provisioning to avoid conflicts
-  ]
-} 
-
-resource devCenter 'Microsoft.DevCenter/devcenters@2022-08-01-preview' = {
-  name: OrganizationJson.name
-  location: OrganizationJson.location
+resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
+  name: OrganizationDefinition.name
+  location: OrganizationDefinition.location
   identity: {
     type: 'SystemAssigned'
   }
 }
 
-resource devBox 'Microsoft.DevCenter/devcenters/devboxdefinitions@2022-08-01-preview' = [for DevBox in DevBoxes: {
+resource devBox 'Microsoft.DevCenter/devcenters/devboxdefinitions@2022-10-12-preview' = [for DevBox in DevBoxes: {
   name: DevBox.name
-  location: OrganizationJson.location
+  location: OrganizationDefinition.location
   parent: devCenter
   properties: {
     imageReference: {
@@ -112,13 +122,45 @@ resource envType 'Microsoft.DevCenter/devcenters/environmentTypes@2022-09-01-pre
 }]
 
 resource gallery 'Microsoft.Compute/galleries@2021-10-01' = {
-  name: OrganizationJson.name
-  location: OrganizationJson.location
+  name: OrganizationDefinition.name
+  location: OrganizationDefinition.location
+}
+
+resource galleryContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
+  name: guid(gallery.id, contributorRoleDefinition.id, devCenter.id)
+  scope: gallery
+  properties: {
+    roleDefinitionId: contributorRoleDefinition.id
+    principalId: devCenter.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource galleryReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
+  name: guid(gallery.id, readerRoleDefinition.id, Windows365PrinicalId)
+  scope: gallery
+  properties: {
+    roleDefinitionId: readerRoleDefinition.id
+    principalId: Windows365PrinicalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+module attachGallery 'attachGallery.bicep' = {
+  name:'${take(deployment().name, 36)}_${uniqueString('attachGallery', gallery.id)}'
+  dependsOn: [
+    galleryReaderRoleAssignment
+    galleryContributorRoleAssignment
+  ]
+  params: {
+    DevCenterName: devCenter.name
+    GalleryId: gallery.id
+  }
 }
 
 resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
-  name: OrganizationJson.name
-  location: OrganizationJson.location
+  name: OrganizationDefinition.name
+  location: OrganizationDefinition.location
   properties: {
     tenantId: subscription().tenantId
     enableRbacAuthorization: true
@@ -140,7 +182,7 @@ resource vaultSecretUserRoleDefinition 'Microsoft.Authorization/roleDefinitions@
 }
 
 resource vaultSecretUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(devCenter.id)
+  name: guid(vault.id, vaultSecretUserRoleDefinition.id, devCenter.id)
   scope: vault
   properties: {
     principalType: 'ServicePrincipal'
@@ -157,7 +199,7 @@ resource vaultSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = [for (Cata
   }
 }]
 
-resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-preview' = [for (Catalog, CatalogIndex) in CatalogsGitHub : {
+resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-10-12-preview' = [for (Catalog, CatalogIndex) in CatalogsGitHub : {
   name: '${Catalog.name}'
   parent: devCenter
   properties: {
@@ -170,7 +212,7 @@ resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-previ
   }
 }]
 
-resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-preview' = [for (Catalog, CatalogIndex) in CatalogsAdoGit : {
+resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-10-12-preview' = [for (Catalog, CatalogIndex) in CatalogsAdoGit : {
   name: '${Catalog.name}'
   parent: devCenter
   properties: {
@@ -184,6 +226,10 @@ resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-09-01-previ
 }]
 
 output OrganizationNetworkId string = virtualNetwork.id
+output OrganizationNetworkName string = virtualNetwork.name
+output OrganizationWorkspaceId string = workspace.id
 output OrganizationDevCenterId string = devCenter.id
 output OrganizationDevCenterIdentity string = devCenter.identity.principalId
+output OrganizationDevCenterName string = devCenter.name
 output OrganizationGalleryId string = gallery.id
+

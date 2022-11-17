@@ -3,89 +3,130 @@ targetScope = 'subscription'
 // ============================================================================================
 
 @description('The organization defintion to process')
-param OrganizationJson object
+param OrganizationDefinition object
 
 @description('The project defintion to process')
-param ProjectJson object
+param ProjectDefinition object
 
 @description('The Windows 365 principal id')
 param Windows365PrinicalId string
 
 // ============================================================================================
 
+var Environments = contains(ProjectDefinition, 'environments') ? ProjectDefinition.environments : []
+
+var Extensions = {
+  Bastion: true     // deploy bastion host on the organization (hub) network to manage shared resources
+  Firewall: true    // deploy a firewall on the organization (hub) network to manage network / resource access
+  Gateway: false    // deploy a VPN gateway on the organization (hub) network to connect external networks / resources
+  Services: true    // deploy shared service on the organization (hub) network and make them available to all projects
+}
+
+// ============================================================================================
+
 resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
-  name: 'ORG-${OrganizationJson.name}'
-  location: OrganizationJson.location
+  name: 'ORG-${OrganizationDefinition.name}'
+  location: OrganizationDefinition.location
   properties: {}
 }
 
 module deployOrganization 'deployOrganization.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString(OrganizationJson.name)}'
+  name: '${take(deployment().name, 36)}_${uniqueString(OrganizationDefinition.name)}'
   scope: organizationResourceGroup
   params:{
-    OrganizationJson: OrganizationJson
+    OrganizationDefinition: OrganizationDefinition
+    Windows365PrinicalId: Windows365PrinicalId
+  }
+}
+
+resource servicesResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = if (Extensions.Services) {
+  name: 'ORG-${OrganizationDefinition.name}-Services'
+  location: OrganizationDefinition.location
+  properties: {}
+}
+
+module deployOrganizationServices 'deployOrganization-Services.bicep' = if (Extensions.Services) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationResources')}'
+  scope: servicesResourceGroup
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
+    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
+  }
+}
+
+resource bastionResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = if (Extensions.Bastion) {
+  name: 'ORG-${OrganizationDefinition.name}-Bastion'
+  location: OrganizationDefinition.location
+  properties: {}
+}
+
+module deployOrganizationBastion 'deployOrganization-Bastion.bicep' = if (Extensions.Bastion) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationBastion')}'
+  scope: bastionResourceGroup
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
+    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
+  }
+}
+
+module deployOrganizationGateway 'deployOrganization-Gateway.bicep' = if (Extensions.Gateway) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationGateway')}'
+  scope: organizationResourceGroup
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
+    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
+  }
+}
+
+module deployOrganizationFirewall 'deployOrganization-Firewall.bicep' = if (Extensions.Firewall) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationFirewall')}'
+  scope: organizationResourceGroup
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
+    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
   }
 }
 
 resource projectResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
-  name: 'PRJ-${OrganizationJson.name}-${ProjectJson.name}'
-  location: OrganizationJson.location
+  name: 'PRJ-${OrganizationDefinition.name}-${ProjectDefinition.name}'
+  location: OrganizationDefinition.location
   properties: {}
 }
 
 module deployProject 'deployProject.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployProject', ProjectJson.name)}'
+  name: '${take(deployment().name, 36)}_${uniqueString('deployProject')}'
   scope: projectResourceGroup
   params:{
-    OrganizationJson: OrganizationJson
+    OrganizationDefinition: OrganizationDefinition
     OrganizationDevCenterId: deployOrganization.outputs.OrganizationDevCenterId
-    ProjectJson: ProjectJson
+    ProjectDefinition: ProjectDefinition
   }
 }
 
 module peerNetworks 'peerNetworks.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork')}'
+  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork', ProjectDefinition.name)}'
   scope: subscription()
   params: {
     HubNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    SpokeNetworkId: deployProject.outputs.ProjectNetworkId
+    HubGatewayIPAddress: Extensions.Firewall ? deployOrganizationFirewall.outputs.GatewayIPAddress : ''
+    SpokeNetworkId: deployProject.outputs.ProjectSettings.networkId
   }
 }
 
-module configureOrganizationGallery 'configureGallery.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('configureGallery', 'organization', OrganizationJson.name)}'
-  scope: organizationResourceGroup
+module initEnvironment 'initEnvironment.bicep' = [for Environment in Environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString('initEnvironment', Environment.name)}'
+  scope: subscription(Environment.subscription)
   params: {
-    GalleryId: deployOrganization.outputs.OrganizationGalleryId
-    GalleryReaderIdentities: [
-      Windows365PrinicalId
-      deployOrganization.outputs.OrganizationDevCenterIdentity
-    ]
+    OrganizationDefinition: OrganizationDefinition
+    ProjectDefinition: ProjectDefinition
+    ProjectSettings: deployProject.outputs.ProjectSettings
+    EnvironmentSettings: first(filter(deployProject.outputs.EnvironmentSettings, EnvironmentSettings => EnvironmentSettings.environmentName == Environment.name))
   }
-}
+}]
 
-module configureDevCenter 'configureDevCenter.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('configureDevCenter', OrganizationJson.name)}'
-  scope: organizationResourceGroup
-  dependsOn: [
-    configureOrganizationGallery
-  ]
-  params: {
-    OrganizationDevCenterId: deployOrganization.outputs.OrganizationDevCenterId
-    OrganizationGalleryId: deployOrganization.outputs.OrganizationGalleryId
-    ProjectNetworkConnectionId: deployProject.outputs.ProjectNetworkConnectionId
-  }
-}
+// ============================================================================================
 
-module configureProject 'configureProject.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('configureProject', OrganizationJson.name)}'
-  scope: projectResourceGroup
-  dependsOn: [
-    deployProject
-    configureDevCenter
-  ]
-  params:{
-    OrganizationJson: OrganizationJson
-    ProjectJson: ProjectJson
-  }
-}
