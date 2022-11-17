@@ -18,10 +18,10 @@
 		{
 			"name": "Demo",
 			"type": "gitHub",
-			"uri": "https://github.com/Azure/deployment-environments.git",
+			"uri": "https://github.com/markusheiliger/dev-box-demo.git",
 			"branch": "main",
-			"path": "/Environments",
-			"secret": "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"
+			"path": "/environments",
+			"secret": "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"
 		}
 	]
 }
