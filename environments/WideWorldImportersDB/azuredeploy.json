@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.12.40.16777",
-      "templateHash": "4734890428844039631"
+      "templateHash": "1590428771086508646"
     }
   },
   "parameters": {
@@ -56,6 +56,31 @@
         "collation": "SQL_Latin1_General_CP1_CI_AS",
         "maxSizeBytes": 104857600,
         "sampleName": "[variables('SampleName')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2021-05-01",
+      "name": "[format('{0}-SQL-PE', variables('ResourcePrefix'))]",
+      "location": "[variables('ResourceLocation')]",
+      "properties": {
+        "subnet": {
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().id, 'Environment-Shared'), 'Microsoft.Network/virtualNetworks/subnets', 'Environment', 'default')]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "[format('{0}-SQL', variables('ResourcePrefix'))]",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]",
+              "groupIds": [
+                "sqlServer"
+              ]
+            }
+          }
+        ]
       },
       "dependsOn": [
         "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
