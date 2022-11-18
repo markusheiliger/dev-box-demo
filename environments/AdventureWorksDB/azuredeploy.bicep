@@ -19,7 +19,7 @@ var SampleName = 'AdventureWorksLT'
 
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-05-01' existing = {
   name: 'Environment'
-  scope: resourceGroup(subscription().id, 'Environment-Shared')
+  scope: resourceGroup(subscription().subscriptionId, 'Environment-Shared')
 }
 
 resource defaultSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-05-01' existing = {

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.12.40.16777",
-      "templateHash": "1590428771086508646"
+      "templateHash": "8513289578141066310"
     }
   },
   "parameters": {
@@ -68,7 +68,7 @@
       "location": "[variables('ResourceLocation')]",
       "properties": {
         "subnet": {
-          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().id, 'Environment-Shared'), 'Microsoft.Network/virtualNetworks/subnets', 'Environment', 'default')]"
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Network/virtualNetworks/subnets', 'Environment', 'default')]"
         },
         "privateLinkServiceConnections": [
           {
