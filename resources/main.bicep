@@ -124,6 +124,7 @@ module initEnvironment 'initEnvironment.bicep' = [for Environment in Environment
     OrganizationDefinition: OrganizationDefinition
     ProjectDefinition: ProjectDefinition
     ProjectSettings: deployProject.outputs.ProjectSettings
+    DevCenterIdentity: deployOrganization.outputs.OrganizationDevCenterIdentity
     EnvironmentSettings: first(filter(deployProject.outputs.EnvironmentSettings, EnvironmentSettings => EnvironmentSettings.environmentName == Environment.name))
   }
 }]

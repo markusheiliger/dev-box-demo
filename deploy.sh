@@ -6,7 +6,12 @@ CLEAN='false'
 
 usage() { 
 	echo "Usage: $0"
-	echo " -r [FLAG] Reset the target subscription"
+	echo "======================================================================================"
+	echo " -o [REQUIRED] 	The organization (DevCenter) name"
+	echo " -p [REQUIRED] 	The project name"
+	echo " -d [FLAG] 		Dump the BICEP template in ARM format"
+	echo " -r [FLAG] 		Reset the full demo environment"
+	echo " -c [FLAG] 		Clean up the subscription mapped to an environment type"
 	exit 1; 
 }
 
@@ -45,6 +50,10 @@ resetSubscription() {
 		echo "$SUBSCRIPTIONID - Waiting for key vault purge ..."
 		while [ ! -z "$(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix)" ]; do sleep 5; done
 	fi
+
+	# give the purge some additional time 
+	# to be finished - just to be safe !!
+	[ $WAIT4OPERATIONS != 0 ] && sleep 60 
 }
 
 while getopts 'o:p:drc' OPT; do
@@ -65,6 +74,9 @@ while getopts 'o:p:drc' OPT; do
 done
 
 clear
+
+[ -z "$ORGANIZATION" ] && usage
+[ -z "$PROJECT" ] && usage
 
 [ ! -f "$ORGANIZATION" ] \
 	&& echo "Could not find organization definition file: $ORGANIZATION" \

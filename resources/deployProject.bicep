@@ -57,6 +57,20 @@ resource devBoxUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-
   }
 }] 
 
+resource deploymentEnvironmentUserRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: resourceGroup()
+  name: '18e40d4e-8d2e-438d-97e1-9528336e149c'
+}
+
+resource deploymentEnvironmentUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = [for PrincipalId in ProjectUsers: if (!empty(PrincipalId)) {
+  name: guid(project.id, deploymentEnvironmentUserRoleDefinition.id, PrincipalId)
+  scope: project
+  properties: {
+    roleDefinitionId: deploymentEnvironmentUserRoleDefinition.id
+    principalId: PrincipalId
+  }
+}] 
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' = {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location

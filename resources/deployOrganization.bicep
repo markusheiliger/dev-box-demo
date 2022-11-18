@@ -97,7 +97,7 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
   name: OrganizationDefinition.name
   location: OrganizationDefinition.location
   identity: {
-    type: 'SystemAssigned'
+    type:'SystemAssigned'
   }
 }
 
