@@ -1,0 +1,6 @@
+name: Sonarqube
+version: 1.0.0
+summary: Private Sonarqube instance for your team
+description: Deploys a ready to use Sonarqube instance with database
+runner: ARM
+templatePath: azuredeploy.json
