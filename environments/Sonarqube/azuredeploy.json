@@ -5,15 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.12.40.16777",
-      "templateHash": "9273073867065290654"
-    }
-  },
-  "parameters": {
-    "DatabaseUsername": {
-      "type": "string"
-    },
-    "DatabasePassword": {
-      "type": "secureString"
+      "templateHash": "1040764661763606271"
     }
   },
   "variables": {
@@ -31,8 +23,8 @@
       "name": "[format('{0}-SQL', variables('ResourcePrefix'))]",
       "location": "[variables('ResourceLocation')]",
       "properties": {
-        "administratorLogin": "[parameters('DatabaseUsername')]",
-        "administratorLoginPassword": "[parameters('DatabasePassword')]",
+        "administratorLogin": "[variables('SqlServerAdminUsername')]",
+        "administratorLoginPassword": "[variables('SqlServerAdminPassword')]",
         "version": "12.0"
       }
     },

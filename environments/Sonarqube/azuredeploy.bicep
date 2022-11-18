@@ -2,11 +2,6 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-param DatabaseUsername string
-
-@secure()
-param DatabasePassword string
-
 // ============================================================================================
 
 #disable-next-line no-loc-expr-outside-params
@@ -35,8 +30,8 @@ resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
   name: '${ResourcePrefix}-SQL'
   location: ResourceLocation
   properties: {
-    administratorLogin: DatabaseUsername
-    administratorLoginPassword: DatabasePassword
+    administratorLogin: SqlServerAdminUsername
+    administratorLoginPassword: SqlServerAdminPassword
     version: '12.0'
   }
 }
