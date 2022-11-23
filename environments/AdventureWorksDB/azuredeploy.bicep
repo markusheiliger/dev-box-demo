@@ -84,11 +84,12 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
 }
 
 resource privateEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
-  name: '${ResourcePrefix}-SQL-PE-GRP'
+  name: sqlServer.name
+  parent: privateEndpoint
   properties: {
     privateDnsZoneConfigs: [
       {
-        name: privateEndpoint.name
+        name: sqlServer.name
         properties: {
           privateDnsZoneId: privatelinkDnsZone.outputs.DNSZoneId
         }

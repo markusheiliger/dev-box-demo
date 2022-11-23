@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.12.40.16777",
-      "templateHash": "4021413651600093186"
+      "templateHash": "13590317036788209835"
     }
   },
   "parameters": {
@@ -81,11 +81,11 @@
     {
       "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
       "apiVersion": "2021-05-01",
-      "name": "[format('{0}-SQL-PE-GRP', variables('ResourcePrefix'))]",
+      "name": "[format('{0}/{1}', format('{0}-SQL-PE', variables('ResourcePrefix')), format('{0}-SQL', variables('ResourcePrefix')))]",
       "properties": {
         "privateDnsZoneConfigs": [
           {
-            "name": "[format('{0}-SQL-PE', variables('ResourcePrefix'))]",
+            "name": "[format('{0}-SQL', variables('ResourcePrefix'))]",
             "properties": {
               "privateDnsZoneId": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))), '2020-10-01').outputs.DNSZoneId.value]"
             }
@@ -94,7 +94,8 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-SQL-PE', variables('ResourcePrefix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone')))]",
+        "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
       ]
     },
     {
