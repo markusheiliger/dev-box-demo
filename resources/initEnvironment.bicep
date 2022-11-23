@@ -11,6 +11,9 @@ param ProjectDefinition object
 @description('The project settings to process')
 param ProjectSettings object
 
+@description('The environment defintion to process')
+param EnvironmentDefinition object
+
 @description('The environment settings to process')
 param EnvironmentSettings object
 
@@ -42,6 +45,7 @@ module deployEnvironment 'deployEnvironment.bicep' = {
   params: {
     OrganizationDefinition: OrganizationDefinition
     ProjectDefinition: ProjectDefinition
+    EnvironmentDefinition: EnvironmentDefinition
     ProjectSettings: ProjectSettings
     EnvironmentSettings: EnvironmentSettings
   }

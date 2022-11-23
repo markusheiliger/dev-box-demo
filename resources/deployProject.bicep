@@ -5,6 +5,9 @@ targetScope = 'resourceGroup'
 @description('The organization defintion to process')
 param OrganizationDefinition object
 
+@description('The organization Network id')
+param OrganizationNetworkId string
+
 @description('The organization DevCenter id')
 param OrganizationDevCenterId string
 
@@ -88,6 +91,35 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' = {
         }
       }
     ]
+  }
+}
+
+resource privateDnsZone  'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: '${ProjectDefinition.name}.${OrganizationDefinition.zone}'
+  location: 'global'
+}
+
+resource privateDnsZoneLink_project 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  name: 'Project'
+  location: 'global'
+  parent: privateDnsZone
+  properties: {
+    registrationEnabled: true
+    virtualNetwork: {
+      id: virtualNetwork.id
+    }
+  }
+}
+
+resource privateDnsZoneLink_organization 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  name: 'Organization'
+  location: 'global'
+  parent: privateDnsZone
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: OrganizationNetworkId
+    }
   }
 }
 

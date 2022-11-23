@@ -54,6 +54,14 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
   }
 }
 
+module privatelinkDnsZone '../_shared/ensurePrivatelinkDnsZone.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('privatelinkDnsZone')}'
+  scope: resourceGroup(subscription().subscriptionId, 'Environment-Shared')
+  params: {
+    DNSZoneName: 'privatelink${environment().suffixes.sqlServerHostname}'
+  }
+}
+
 resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
   name: '${ResourcePrefix}-SQL-PE'
   location: ResourceLocation
@@ -74,3 +82,18 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
     ]
   }
 }
+
+resource privateEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
+  name: '${ResourcePrefix}-SQL-PE-GRP'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: privateEndpoint.name
+        properties: {
+          privateDnsZoneId: privatelinkDnsZone.outputs.DNSZoneId
+        }
+      }
+    ]
+  }
+}
+

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.12.40.16777",
-      "templateHash": "3897975627934178934"
+      "templateHash": "4021413651600093186"
     }
   },
   "parameters": {
@@ -77,6 +77,89 @@
       "dependsOn": [
         "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
       ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2021-05-01",
+      "name": "[format('{0}-SQL-PE-GRP', variables('ResourcePrefix'))]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "[format('{0}-SQL-PE', variables('ResourcePrefix'))]",
+            "properties": {
+              "privateDnsZoneId": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))), '2020-10-01').outputs.DNSZoneId.value]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-SQL-PE', variables('ResourcePrefix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))]",
+      "subscriptionId": "[subscription().subscriptionId]",
+      "resourceGroup": "Environment-Shared",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "DNSZoneName": {
+            "value": "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.12.40.16777",
+              "templateHash": "3635280251280219846"
+            }
+          },
+          "parameters": {
+            "DNSZoneName": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[parameters('DNSZoneName')]",
+              "location": "global",
+              "properties": {}
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', parameters('DNSZoneName'), format('{0}-link', parameters('DNSZoneName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', 'Environment')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('DNSZoneName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "DNSZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', parameters('DNSZoneName'))]"
+            }
+          }
+        }
+      }
     }
   ]
 }

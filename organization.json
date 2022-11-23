@@ -1,5 +1,6 @@
 {
 	"name": "CarmadaRnD",
+	"zone": "rnd.carmada.cloud",
 	"location": "westeurope",
 	"subscription": "f9fcf631-fa8d-4ea2-8298-61b43220a3d1",
 	"devboxes": [
@@ -21,7 +22,7 @@
 			"uri": "https://github.com/markusheiliger/dev-box-demo.git",
 			"branch": "main",
 			"path": "/environments",
-			"secret": "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"
+			"secret": "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"
 		}
 	]
 }

@@ -93,6 +93,23 @@ resource virtualNetworkLA 'Microsoft.Insights/diagnosticSettings@2021-05-01-prev
   }
 }
 
+resource privateDnsZone  'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: OrganizationDefinition.zone
+  location: 'global'
+}
+
+resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  name: virtualNetwork.name
+  location: 'global'
+  parent: privateDnsZone
+  properties: {
+    registrationEnabled: true
+    virtualNetwork: {
+      id: virtualNetwork.id
+    }
+  }
+}
+
 resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
   name: OrganizationDefinition.name
   location: OrganizationDefinition.location
