@@ -11,6 +11,9 @@ param HubGatewayIPAddress string = ''
 @description('The spoke network id')
 param SpokeNetworkId string
 
+@description('Operation id')
+param OperationId string = newGuid()
+
 // ============================================================================================
 
 resource hubNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' existing = {
@@ -24,7 +27,7 @@ resource spokeNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' existing = 
 }
 
 module peerHub2Spoke 'peerNetwork.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork', SpokeNetworkId)}'
+  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork', SpokeNetworkId, OperationId)}'
   scope: resourceGroup(split(HubNetworkId, '/')[2], split(HubNetworkId, '/')[4])
   params: {
     LocalVirtualNetworkName: hubNetwork.name
@@ -34,7 +37,7 @@ module peerHub2Spoke 'peerNetwork.bicep' = {
 }
 
 module peerSpoke2Hub 'peerNetwork.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork', HubNetworkId)}'
+  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork', HubNetworkId, OperationId)}'
   scope: resourceGroup(split(SpokeNetworkId, '/')[2], split(SpokeNetworkId, '/')[4])
   params: {
     LocalVirtualNetworkName: spokeNetwork.name

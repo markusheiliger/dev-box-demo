@@ -15,11 +15,13 @@ var ResourcePrefix = uniqueString(resourceGroup().id)
 
 var SampleName = 'AdventureWorksLT'
 
+var EnvironmentNetworkIdSegments = split(resourceGroup().tags.EnvironmentNetworkId, '/')
+
 // ============================================================================================
 
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-05-01' existing = {
-  name: 'Environment'
-  scope: resourceGroup(subscription().subscriptionId, 'Environment-Shared')
+  name: last(EnvironmentNetworkIdSegments)
+  scope: resourceGroup(EnvironmentNetworkIdSegments[2], EnvironmentNetworkIdSegments[4])
 }
 
 resource defaultSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-05-01' existing = {
@@ -54,9 +56,9 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
   }
 }
 
-module privatelinkDnsZone '../_shared/ensurePrivatelinkDnsZone.bicep' = {
+module getPrivateLinkDnsZoneId '../_shared/GetPrivateLinkDnsZoneId.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('privatelinkDnsZone')}'
-  scope: resourceGroup(subscription().subscriptionId, 'Environment-Shared')
+  #disable-next-line explicit-values-for-loc-params
   params: {
     DNSZoneName: 'privatelink${environment().suffixes.sqlServerHostname}'
   }
@@ -84,17 +86,18 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
 }
 
 resource privateEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
-  name: sqlServer.name
+  name: '${ResourcePrefix}-SQL-PE-GRP'
   parent: privateEndpoint
   properties: {
     privateDnsZoneConfigs: [
       {
         name: sqlServer.name
         properties: {
-          privateDnsZoneId: privatelinkDnsZone.outputs.DNSZoneId
+          privateDnsZoneId: getPrivateLinkDnsZoneId.outputs.DNSZoneId
         }
       }
     ]
   }
 }
 
+ 

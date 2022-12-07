@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.12.40.16777",
-      "templateHash": "3353868596803202721"
+      "version": "0.13.1.58284",
+      "templateHash": "13827626561518271534"
     }
   },
   "parameters": {
@@ -22,7 +22,8 @@
   },
   "variables": {
     "ResourceLocation": "[resourceGroup().location]",
-    "ResourcePrefix": "[uniqueString(resourceGroup().id)]"
+    "ResourcePrefix": "[uniqueString(resourceGroup().id)]",
+    "EnvironmentNetworkIdSegments": "[split(resourceGroup().tags.EnvironmentNetworkId, '/')]"
   },
   "resources": [
     {
@@ -37,7 +38,7 @@
             "properties": {
               "privateIPAllocationMethod": "Dynamic",
               "subnet": {
-                "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Network/virtualNetworks/subnets', 'Environment', 'default')]"
+                "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', variables('EnvironmentNetworkIdSegments')[2], variables('EnvironmentNetworkIdSegments')[4]), 'Microsoft.Network/virtualNetworks/subnets', last(variables('EnvironmentNetworkIdSegments')), 'default')]"
               }
             }
           }

@@ -11,11 +11,16 @@ param OrganizationNetworkId string
 @description('The organization DevCenter id')
 param OrganizationDevCenterId string
 
+param OrganizationGatewayIpAddress string
+
 @description('The project defintion to process')
 param ProjectDefinition object
 
+param ProjectPrivateLinkResourceGroupId string
+
 // ============================================================================================
 
+var ProjectPrivateLinkResourceGroupIdSegments = split(ProjectPrivateLinkResourceGroupId, '/')
 var OrganizationDevCenterIdSegments = split(OrganizationDevCenterId, '/')
 var Environments = contains(ProjectDefinition, 'environments') ? ProjectDefinition.environments : []
 var DevBoxes = contains(OrganizationDefinition, 'devboxes') ? OrganizationDefinition.devboxes : []
@@ -94,6 +99,16 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' = {
   }
 }
 
+module peerNetworks 'peerNetworks.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('peerNetworks', OrganizationNetworkId, virtualNetwork.id)}'
+  scope: subscription()
+  params: {
+    HubNetworkId: OrganizationNetworkId
+    HubGatewayIPAddress: OrganizationGatewayIpAddress
+    SpokeNetworkId: virtualNetwork.id
+  }
+}
+
 resource privateDnsZone  'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: '${ProjectDefinition.name}.${OrganizationDefinition.zone}'
   location: 'global'
@@ -157,40 +172,27 @@ resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-10-12-preview' = [f
   }
 }]
 
-resource deploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = [for Environment in Environments: {
-  name: 'Deploy-${Environment.name}'
-  location: OrganizationDefinition.location
+module deployEnvironment 'deployEnvironment.bicep' = [for Environment in Environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployEnvironment', Environment.name)}'
+  scope: resourceGroup()
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    OrganizationDevCenterId: OrganizationDevCenterId
+    ProjectDefinition: ProjectDefinition
+    ProjectNetworkId: virtualNetwork.id
+    ProjectPrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
+    EnvironmentDefinition: Environment
+  }
 }]
 
-resource deploymentEnvironment 'Microsoft.DevCenter/projects/environmentTypes@2022-10-12-preview' = [for (Environment, EnvironmentIndex) in Environments: {
-  name: Environment.name
-  parent: project
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${deploymentIdentity[EnvironmentIndex].id}': {}
-    }
+module deployPrivateLinks 'deployPrivateLinks.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployPrivateLinks', project.id)}'
+  scope: resourceGroup(ProjectPrivateLinkResourceGroupIdSegments[2], ProjectPrivateLinkResourceGroupIdSegments[4])
+  params: {
+    ProjectNetworkId: virtualNetwork.id
+    EnvironmentNetworkIds: [for i in range(0, length(Environments)): deployEnvironment[i].outputs.EnvironmentNetworkId]
+    DeploymentPrincipalIds: [for i in range(0, length(Environments)): deployEnvironment[i].outputs.DeploymentPrincipalId]
   }
-  tags: {
-    IPRange: '192.168.${EnvironmentIndex}.0/24'
-  }
-  properties: {
-    #disable-next-line use-resource-id-functions
-    deploymentTargetId: '/subscriptions/${Environment.subscription}'
-    status: 'Enabled'
-  }
-}]
+}
 
 // ============================================================================================
-
-output ProjectSettings object = {
-  networkId: virtualNetwork.id
-  networkConnectionId: networkConnection.id
-}
-output EnvironmentSettings array = [for i in range(0, length(Environments)): {
-  environmentName: Environments[i].name
-  environmentResourceId: deploymentEnvironment[i] .id
-  identityResourceId:  deploymentIdentity[i].id
-  identityPrincipalId: deploymentIdentity[i].properties.principalId
-  ipRange: deploymentEnvironment[i].tags.IPRange
-}]

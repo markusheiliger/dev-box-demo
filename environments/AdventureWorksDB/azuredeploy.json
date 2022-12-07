@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.12.40.16777",
-      "templateHash": "13590317036788209835"
+      "version": "0.13.1.58284",
+      "templateHash": "2561685712596576463"
     }
   },
   "parameters": {
@@ -19,7 +19,8 @@
   "variables": {
     "ResourceLocation": "[resourceGroup().location]",
     "ResourcePrefix": "[uniqueString(resourceGroup().id)]",
-    "SampleName": "AdventureWorksLT"
+    "SampleName": "AdventureWorksLT",
+    "EnvironmentNetworkIdSegments": "[split(resourceGroup().tags.EnvironmentNetworkId, '/')]"
   },
   "resources": [
     {
@@ -60,7 +61,7 @@
       "location": "[variables('ResourceLocation')]",
       "properties": {
         "subnet": {
-          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Network/virtualNetworks/subnets', 'Environment', 'default')]"
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', variables('EnvironmentNetworkIdSegments')[2], variables('EnvironmentNetworkIdSegments')[4]), 'Microsoft.Network/virtualNetworks/subnets', last(variables('EnvironmentNetworkIdSegments')), 'default')]"
         },
         "privateLinkServiceConnections": [
           {
@@ -81,20 +82,20 @@
     {
       "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
       "apiVersion": "2021-05-01",
-      "name": "[format('{0}/{1}', format('{0}-SQL-PE', variables('ResourcePrefix')), format('{0}-SQL', variables('ResourcePrefix')))]",
+      "name": "[format('{0}/{1}', format('{0}-SQL-PE', variables('ResourcePrefix')), format('{0}-SQL-PE-GRP', variables('ResourcePrefix')))]",
       "properties": {
         "privateDnsZoneConfigs": [
           {
             "name": "[format('{0}-SQL', variables('ResourcePrefix'))]",
             "properties": {
-              "privateDnsZoneId": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))), '2020-10-01').outputs.DNSZoneId.value]"
+              "privateDnsZoneId": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))), '2020-10-01').outputs.DNSZoneId.value]"
             }
           }
         ]
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone')))]",
         "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-SQL-PE', variables('ResourcePrefix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone')))]",
         "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
       ]
     },
@@ -102,8 +103,6 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2020-10-01",
       "name": "[format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))]",
-      "subscriptionId": "[subscription().subscriptionId]",
-      "resourceGroup": "Environment-Shared",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -120,43 +119,68 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.12.40.16777",
-              "templateHash": "3635280251280219846"
+              "version": "0.13.1.58284",
+              "templateHash": "8241955475848406588"
             }
           },
           "parameters": {
             "DNSZoneName": {
               "type": "string"
+            },
+            "OperationId": {
+              "type": "string",
+              "defaultValue": "[newGuid()]"
+            },
+            "OperationLocation": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
             }
+          },
+          "variables": {
+            "$fxv#0": "#!/bin/bash\nDNSZoneId=$(az network private-dns zone show --subscription $Subscription --resource-group $ResourceGroup --name $(echo $DNSZoneName | | tr '[:upper:]' '[:lower:]') --query id -o tsv --only-show-errors 2> /dev/null)\njq -n --arg id \"$DNSZoneId\" '{ DNSZoneId: $id }' >  $AZ_SCRIPTS_OUTPUT_PATH",
+            "PrivateLinkResourceGroupIdSegments": "[split(resourceGroup().tags.PrivateLinkResourceGroupId, '/')]"
           },
           "resources": [
             {
-              "type": "Microsoft.Network/privateDnsZones",
-              "apiVersion": "2020-06-01",
-              "name": "[parameters('DNSZoneName')]",
-              "location": "global",
-              "properties": {}
-            },
-            {
-              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
-              "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', parameters('DNSZoneName'), format('{0}-link', parameters('DNSZoneName')))]",
-              "location": "global",
-              "properties": {
-                "registrationEnabled": false,
-                "virtualNetwork": {
-                  "id": "[resourceId('Microsoft.Network/virtualNetworks', 'Environment')]"
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('GetPrivateLinkDnsZoneId-{0}', uniqueString(deployment().name))]",
+              "location": "[parameters('OperationLocation')]",
+              "kind": "AzureCLI",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceGroup().tags.DeploymentIdentityId)]": {}
                 }
               },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateDnsZones', parameters('DNSZoneName'))]"
-              ]
+              "properties": {
+                "forceUpdateTag": "[parameters('OperationId')]",
+                "azCliVersion": "2.40.0",
+                "timeout": "PT30M",
+                "environmentVariables": [
+                  {
+                    "name": "Subscription",
+                    "value": "[variables('PrivateLinkResourceGroupIdSegments')[2]]"
+                  },
+                  {
+                    "name": "ResourceGroup",
+                    "value": "[variables('PrivateLinkResourceGroupIdSegments')[4]]"
+                  },
+                  {
+                    "name": "DNSZoneName",
+                    "value": "[parameters('DNSZoneName')]"
+                  }
+                ],
+                "scriptContent": "[variables('$fxv#0')]",
+                "cleanupPreference": "OnSuccess",
+                "retentionInterval": "P1D"
+              }
             }
           ],
           "outputs": {
             "DNSZoneId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.Network/privateDnsZones', parameters('DNSZoneName'))]"
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', format('GetPrivateLinkDnsZoneId-{0}', uniqueString(deployment().name))), '2020-10-01').outputs.DNSZoneId]"
             }
           }
         }

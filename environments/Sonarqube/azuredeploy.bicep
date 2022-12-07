@@ -14,11 +14,13 @@ var SqlServerAdminPassword = guid(deployment().name, resourceGroup().id)
 var SonarqubeImageVersion = 'lts-community'
 var SonarqubeDatabaseName = 'Sonarqube'
 
+var EnvironmentNetworkIdSegments = split(resourceGroup().tags.EnvironmentNetworkId, '/')
+
 // ============================================================================================
 
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-05-01' existing = {
-  name: 'Environment'
-  scope: resourceGroup(subscription().subscriptionId, 'Environment-Shared')
+  name: last(EnvironmentNetworkIdSegments)
+  scope: resourceGroup(EnvironmentNetworkIdSegments[2], EnvironmentNetworkIdSegments[4])
 }
 
 resource defaultSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-05-01' existing = {

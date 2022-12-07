@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.12.40.16777",
-      "templateHash": "8513289578141066310"
+      "version": "0.13.1.58284",
+      "templateHash": "18399915070033487075"
     }
   },
   "parameters": {
@@ -27,7 +27,8 @@
   "variables": {
     "ResourceLocation": "[resourceGroup().location]",
     "ResourcePrefix": "[uniqueString(resourceGroup().id)]",
-    "SampleName": "[format('WideWorldImporters{0}', if(equals(parameters('DatabaseType'), 'Standard'), 'Std', parameters('DatabaseType')))]"
+    "SampleName": "[format('WideWorldImporters{0}', if(equals(parameters('DatabaseType'), 'Standard'), 'Std', parameters('DatabaseType')))]",
+    "EnvironmentNetworkIdSegments": "[split(resourceGroup().tags.EnvironmentNetworkId, '/')]"
   },
   "resources": [
     {
@@ -68,7 +69,7 @@
       "location": "[variables('ResourceLocation')]",
       "properties": {
         "subnet": {
-          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, 'Environment-Shared'), 'Microsoft.Network/virtualNetworks/subnets', 'Environment', 'default')]"
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', variables('EnvironmentNetworkIdSegments')[2], variables('EnvironmentNetworkIdSegments')[4]), 'Microsoft.Network/virtualNetworks/subnets', last(variables('EnvironmentNetworkIdSegments')), 'default')]"
         },
         "privateLinkServiceConnections": [
           {

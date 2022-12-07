@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.12.40.16777",
-      "templateHash": "1040764661763606271"
+      "version": "0.13.1.58284",
+      "templateHash": "10894514956015961756"
     }
   },
   "variables": {
@@ -14,7 +14,8 @@
     "SqlServerAdminUsername": "Sonarqube",
     "SqlServerAdminPassword": "[guid(deployment().name, resourceGroup().id)]",
     "SonarqubeImageVersion": "lts-community",
-    "SonarqubeDatabaseName": "Sonarqube"
+    "SonarqubeDatabaseName": "Sonarqube",
+    "EnvironmentNetworkIdSegments": "[split(resourceGroup().tags.EnvironmentNetworkId, '/')]"
   },
   "resources": [
     {

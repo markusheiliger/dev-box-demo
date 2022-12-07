@@ -16,10 +16,10 @@ param Windows365PrinicalId string
 var Environments = contains(ProjectDefinition, 'environments') ? ProjectDefinition.environments : []
 
 var Extensions = {
-  Bastion: true     // deploy bastion host on the organization (hub) network to manage shared resources
-  Firewall: true    // deploy a firewall on the organization (hub) network to manage network / resource access
+  Bastion: false     // deploy bastion host on the organization (hub) network to manage shared resources
+  Firewall: false    // deploy a firewall on the organization (hub) network to manage network / resource access
   Gateway: false    // deploy a VPN gateway on the organization (hub) network to connect external networks / resources
-  Services: true    // deploy shared service on the organization (hub) network and make them available to all projects
+  Services: false    // deploy shared service on the organization (hub) network and make them available to all projects
 }
 
 // ============================================================================================
@@ -97,6 +97,12 @@ resource projectResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = 
   properties: {}
 }
 
+resource privateLinksResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
+  name: 'PRJ-${OrganizationDefinition.name}-${ProjectDefinition.name}-PL'
+  location: OrganizationDefinition.location
+  properties: {}
+}
+
 module deployProject 'deployProject.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('deployProject')}'
   scope: projectResourceGroup
@@ -104,32 +110,12 @@ module deployProject 'deployProject.bicep' = {
     OrganizationDefinition: OrganizationDefinition
     OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
     OrganizationDevCenterId: deployOrganization.outputs.OrganizationDevCenterId
+    OrganizationGatewayIpAddress: Extensions.Firewall ? deployOrganizationFirewall.outputs.GatewayIPAddress : ''
     ProjectDefinition: ProjectDefinition
+    ProjectPrivateLinkResourceGroupId: privateLinksResourceGroup.id
   }
 }
-
-module peerNetworks 'peerNetworks.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('peerNetwork', ProjectDefinition.name)}'
-  scope: subscription()
-  params: {
-    HubNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    HubGatewayIPAddress: Extensions.Firewall ? deployOrganizationFirewall.outputs.GatewayIPAddress : ''
-    SpokeNetworkId: deployProject.outputs.ProjectSettings.networkId
-  }
-}
-
-module initEnvironment 'initEnvironment.bicep' = [for Environment in Environments: {
-  name: '${take(deployment().name, 36)}_${uniqueString('initEnvironment', Environment.name)}'
-  scope: subscription(Environment.subscription)
-  params: {
-    OrganizationDefinition: OrganizationDefinition
-    ProjectDefinition: ProjectDefinition
-    ProjectSettings: deployProject.outputs.ProjectSettings
-    EnvironmentDefinition: Environment
-    EnvironmentSettings: first(filter(deployProject.outputs.EnvironmentSettings, EnvironmentSettings => EnvironmentSettings.environmentName == Environment.name))
-    DevCenterIdentity: deployOrganization.outputs.OrganizationDevCenterIdentity
-  }
-}]
 
 // ============================================================================================
+
 
