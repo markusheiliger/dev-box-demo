@@ -147,6 +147,7 @@ module initSubscription 'initSubscription.bicep' = {
   scope: subscription(EnvironmentDefinition.subscription)
   params: {
     DevCenterIdentity: devCenter.identity.principalId
+    DeploymentIdentity: deploymentIdentity.properties.principalId
   }
 }
 

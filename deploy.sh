@@ -56,6 +56,16 @@ resetSubscription() {
 	[ $WAIT4OPERATIONS != 0 ] && sleep 60 
 }
 
+deleteOrphanRoleAssignments() {
+
+	local SUBSCRIPTIONID="$1"
+
+	for ASSIGNMENTID in $(az role assignment list --subscription $SUBSCRIPTIONID --query "[?(principalType=='ServicePrincipal' && principalName=='')].id" -o tsv | dos2unix); do
+		echo "Deletin orphan role assignment $ASSIGNMENTID"
+		az role assignment delete --subscription $SUBSCRIPTIONID --ids $ASSIGNMENTID --yes
+	done
+}
+
 while getopts 'o:p:drc' OPT; do
     case "$OPT" in
 		o)
@@ -119,6 +129,18 @@ if [ "$RESET" = 'true' ]; then
 	done
 
 fi
+
+for BACKGROUNDPID in "${BACKGROUNDPIDS[@]}"; do
+	[ ! -z "$BACKGROUNDPID" ] && wait $BACKGROUNDPID
+done
+
+deleteOrphanRoleAssignments $SUBSCRIPTION &
+BACKGROUNDPIDS=( "$!" )
+
+for ENVIRONMENTSUBSCRIPTION in $(cat $PROJECT | jq --raw-output '.. | .subscription? // empty' | dos2unix); do
+	deleteOrphanRoleAssignments $ENVIRONMENTSUBSCRIPTION &
+	BACKGROUNDPIDS+=( "$!" )
+done
 
 for BACKGROUNDPID in "${BACKGROUNDPIDS[@]}"; do
 	[ ! -z "$BACKGROUNDPID" ] && wait $BACKGROUNDPID
