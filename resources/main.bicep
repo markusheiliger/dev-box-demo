@@ -13,8 +13,6 @@ param Windows365PrinicalId string
 
 // ============================================================================================
 
-var Environments = contains(ProjectDefinition, 'environments') ? ProjectDefinition.environments : []
-
 var Extensions = {
   Bastion: false     // deploy bastion host on the organization (hub) network to manage shared resources
   Firewall: false    // deploy a firewall on the organization (hub) network to manage network / resource access
@@ -23,6 +21,11 @@ var Extensions = {
 }
 
 // ============================================================================================
+
+module deployCustomRoleDefinitions 'deployCustomRoleDefinitions.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployCustomRoleDefinitions')}'
+  scope: subscription()
+}
 
 resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
   name: 'ORG-${OrganizationDefinition.name}'
@@ -33,6 +36,9 @@ resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-0
 module deployOrganization 'deployOrganization.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString(OrganizationDefinition.name)}'
   scope: organizationResourceGroup
+  dependsOn: [
+    deployCustomRoleDefinitions
+  ]
   params:{
     OrganizationDefinition: OrganizationDefinition
     Windows365PrinicalId: Windows365PrinicalId
@@ -48,6 +54,9 @@ resource servicesResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' =
 module deployOrganizationServices 'deployOrganization-Services.bicep' = if (Extensions.Services) {
   name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationResources')}'
   scope: servicesResourceGroup
+  dependsOn: [
+    deployCustomRoleDefinitions
+  ]
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
@@ -64,6 +73,9 @@ resource bastionResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = 
 module deployOrganizationBastion 'deployOrganization-Bastion.bicep' = if (Extensions.Bastion) {
   name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationBastion')}'
   scope: bastionResourceGroup
+  dependsOn: [
+    deployCustomRoleDefinitions
+  ]
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
@@ -74,6 +86,9 @@ module deployOrganizationBastion 'deployOrganization-Bastion.bicep' = if (Extens
 module deployOrganizationGateway 'deployOrganization-Gateway.bicep' = if (Extensions.Gateway) {
   name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationGateway')}'
   scope: organizationResourceGroup
+  dependsOn: [
+    deployCustomRoleDefinitions
+  ]
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
@@ -84,6 +99,9 @@ module deployOrganizationGateway 'deployOrganization-Gateway.bicep' = if (Extens
 module deployOrganizationFirewall 'deployOrganization-Firewall.bicep' = if (Extensions.Firewall) {
   name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationFirewall')}'
   scope: organizationResourceGroup
+  dependsOn: [
+    deployCustomRoleDefinitions
+  ]
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
@@ -106,6 +124,9 @@ resource privateLinksResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-0
 module deployProject 'deployProject.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('deployProject')}'
   scope: projectResourceGroup
+  dependsOn: [
+    deployCustomRoleDefinitions
+  ]
   params:{
     OrganizationDefinition: OrganizationDefinition
     OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId

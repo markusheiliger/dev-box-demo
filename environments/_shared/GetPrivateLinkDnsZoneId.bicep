@@ -4,9 +4,6 @@ targetScope = 'resourceGroup'
 
 param DNSZoneName string
 
-param OperationId string = newGuid()
-param OperationLocation string = resourceGroup().location
-
 // ============================================================================================
 
 var PrivateLinkResourceGroupIdSegments = split(resourceGroup().tags.PrivateLinkResourceGroupId, '/')
@@ -14,17 +11,18 @@ var PrivateLinkResourceGroupIdSegments = split(resourceGroup().tags.PrivateLinkR
 // ============================================================================================
 
 resource getPrivateLinkDnsZoneId 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
-  name: 'GetPrivateLinkDnsZoneId-${uniqueString(deployment().name)}'
-  location: OperationLocation
+  name: 'GetPrivateLinkDnsZoneId-${replace(DNSZoneName, '.', '_')}'
+  #disable-next-line no-loc-expr-outside-params
+  location: resourceGroup().location
   kind: 'AzureCLI'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${resourceGroup().tags.DeploymentIdentityId}': {}
+      '${resourceGroup().tags.PrivateLinkAutomationIdentityId}': {}
     }
   }
   properties: {
-    forceUpdateTag: OperationId
+    forceUpdateTag: guid(DNSZoneName)
     azCliVersion: '2.40.0'
     timeout: 'PT30M'
     environmentVariables: [

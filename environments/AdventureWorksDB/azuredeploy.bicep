@@ -58,7 +58,6 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
 
 module getPrivateLinkDnsZoneId '../_shared/GetPrivateLinkDnsZoneId.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('privatelinkDnsZone')}'
-  #disable-next-line explicit-values-for-loc-params
   params: {
     DNSZoneName: 'privatelink${environment().suffixes.sqlServerHostname}'
   }
@@ -85,19 +84,19 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
   }
 }
 
-resource privateEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
-  name: '${ResourcePrefix}-SQL-PE-GRP'
-  parent: privateEndpoint
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: sqlServer.name
-        properties: {
-          privateDnsZoneId: getPrivateLinkDnsZoneId.outputs.DNSZoneId
-        }
-      }
-    ]
-  }
-}
+// resource privateEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
+//   name: '${ResourcePrefix}-SQL-PE-GRP'
+//   parent: privateEndpoint
+//   properties: {
+//     privateDnsZoneConfigs: [
+//       {
+//         name: sqlServer.name
+//         properties: {
+//           privateDnsZoneId: getPrivateLinkDnsZoneId.outputs.DNSZoneId
+//         }
+//       }
+//     ]
+//   }
+// }
 
  

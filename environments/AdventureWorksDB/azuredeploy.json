@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "15207464282610086995"
+      "templateHash": "15715526120089514078"
     }
   },
   "parameters": {
@@ -80,26 +80,6 @@
       ]
     },
     {
-      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
-      "apiVersion": "2021-05-01",
-      "name": "[format('{0}/{1}', format('{0}-SQL-PE', variables('ResourcePrefix')), format('{0}-SQL-PE-GRP', variables('ResourcePrefix')))]",
-      "properties": {
-        "privateDnsZoneConfigs": [
-          {
-            "name": "[format('{0}-SQL', variables('ResourcePrefix'))]",
-            "properties": {
-              "privateDnsZoneId": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))), '2020-10-01').outputs.DNSZoneId.value]"
-            }
-          }
-        ]
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone')))]",
-        "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-SQL-PE', variables('ResourcePrefix')))]",
-        "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
-      ]
-    },
-    {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2020-10-01",
       "name": "[format('{0}_{1}', take(deployment().name, 36), uniqueString('privatelinkDnsZone'))]",
@@ -120,20 +100,12 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "6355742025126490443"
+              "templateHash": "14487418475932168943"
             }
           },
           "parameters": {
             "DNSZoneName": {
               "type": "string"
-            },
-            "OperationId": {
-              "type": "string",
-              "defaultValue": "[newGuid()]"
-            },
-            "OperationLocation": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().location]"
             }
           },
           "variables": {
@@ -144,17 +116,17 @@
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[format('GetPrivateLinkDnsZoneId-{0}', uniqueString(deployment().name))]",
-              "location": "[parameters('OperationLocation')]",
+              "name": "[format('GetPrivateLinkDnsZoneId-{0}', replace(parameters('DNSZoneName'), '.', '_'))]",
+              "location": "[resourceGroup().location]",
               "kind": "AzureCLI",
               "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
-                  "[format('{0}', resourceGroup().tags.DeploymentIdentityId)]": {}
+                  "[format('{0}', resourceGroup().tags.PrivateLinkAutomationIdentityId)]": {}
                 }
               },
               "properties": {
-                "forceUpdateTag": "[parameters('OperationId')]",
+                "forceUpdateTag": "[guid(parameters('DNSZoneName'))]",
                 "azCliVersion": "2.40.0",
                 "timeout": "PT30M",
                 "environmentVariables": [
@@ -180,7 +152,7 @@
           "outputs": {
             "DNSZoneId": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', format('GetPrivateLinkDnsZoneId-{0}', uniqueString(deployment().name))), '2020-10-01').outputs.DNSZoneId]"
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', format('GetPrivateLinkDnsZoneId-{0}', replace(parameters('DNSZoneName'), '.', '_'))), '2020-10-01').outputs.DNSZoneId]"
             }
           }
         }
