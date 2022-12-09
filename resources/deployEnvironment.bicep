@@ -29,6 +29,20 @@ resource deploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@20
   location: OrganizationDefinition.location
 }
 
+resource managedIdentityOperatorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'f1a07417-d97a-45cb-824c-7a7467783830' // https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#managed-identity-operator
+}
+
+resource managedIdentityOperatorRoleRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(deploymentIdentity.id, managedIdentityOperatorRoleDefinition.id, deploymentIdentity.id)
+  scope: deploymentIdentity
+  properties: {
+    principalId: deploymentIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: managedIdentityOperatorRoleDefinition.id
+  }
+}
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-01-01' = {
   name: '${EnvironmentDefinition.name}-Network'
   location: OrganizationDefinition.location
