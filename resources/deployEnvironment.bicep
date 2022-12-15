@@ -12,6 +12,8 @@ param ProjectDefinition object
 
 param ProjectNetworkId string
 
+param ProjectSettingsId string
+
 param ProjectPrivateLinkResourceGroupId string
 
 @description('The environment defintion to process')
@@ -20,6 +22,7 @@ param EnvironmentDefinition object
 // ============================================================================================
 
 var OrganizationDevCenterIdSegments = split(OrganizationDevCenterId, '/')
+var EnvironmentTypeId = guid(resourceId('Microsoft.DevCenter/projects/environmentTypes', project.name, EnvironmentDefinition.name))
 
 // ============================================================================================
 
@@ -60,6 +63,7 @@ module deployEnvironmentSubscription 'deployEnvironment-Subscription.bicep' = {
     ProjectDefinition: ProjectDefinition
     ProjectNetworkId: ProjectNetworkId
     EnvironmentDefinition: EnvironmentDefinition
+    EnvironmentTypeId: EnvironmentTypeId
     DeploymentIdentityId: deploymentIdentity.id
   }
 }
@@ -74,8 +78,10 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-10-12-p
     }
   }
   tags: {
-    PrivateLinkAutomationIdentityId: deploymentIdentity.id
-    PrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
+    EnvironmentTypeName: EnvironmentDefinition.name
+    EnvironmentTypeId: EnvironmentTypeId
+    EnvironmentSettingsId: ProjectSettingsId
+    EnvironmentDeployerId: deploymentIdentity.id
   }
   properties: {
     #disable-next-line use-resource-id-functions
@@ -84,6 +90,19 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-10-12-p
   }
 }
 
+module deploySettings 'deploySettings.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deploySettings', last(split(ProjectSettingsId, '/')))}'
+  scope: resourceGroup()
+  params: {
+    ConfigurationStoreName: last(split(ProjectSettingsId, '/'))
+    Label: EnvironmentDefinition.name
+    Settings: {
+      EnvironmentNetworkId: deployEnvironmentSubscription.outputs.EnvironmentNetworkId
+      DeploymentPrincipalId: deploymentIdentity.properties.principalId
+    }
+    ReaderPrincipalIds: [deploymentIdentity.properties.principalId]
+  }
+}
 
 // ============================================================================================
 

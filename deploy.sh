@@ -40,30 +40,40 @@ resetSubscription() {
 
 	WAIT4OPERATIONS=0
 
+
 	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
 		WAIT4OPERATIONS=1
 		echo "$SUBSCRIPTIONID - Purging deleted key vault '$KEYVAULT' ..." \
 			&& az keyvault purge --subscription $SUBSCRIPTIONID --name $KEYVAULT --no-wait
 	done
 
-	if [ $WAIT4OPERATIONS != 0 ]; then
-		echo "$SUBSCRIPTIONID - Waiting for key vault purge ..."
-		while [ ! -z "$(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix)" ]; do sleep 5; done
-	fi
+	for APPCONFIG in $(az appconfig list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
+		# no need to track operations for waiting as app configs cannot be purged with a no-wait option
+		echo "$SUBSCRIPTIONID - Purging deleted app configuration '$APPCONFIG' ..." \
+			&& az appconfig purge --subscription $SUBSCRIPTIONID --name $APPCONFIG --yes
+	done
 
-	# give the purge some additional time 
-	# to be finished - just to be safe !!
-	[ $WAIT4OPERATIONS != 0 ] && sleep 60 
+	if [ $WAIT4OPERATIONS != 0 ]; then
+		echo "$SUBSCRIPTIONID - Waiting for purge operations ..."
+		while [ ! -z "$(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix)" ]; do sleep 5; done
+		sleep 60 # give Azure some additional time to get it's state right after all these purges
+	fi
 }
 
-deleteOrphanRoleAssignments() {
+cleanupRoleDefinitionsAndAssignments() {
 
 	local SUBSCRIPTIONID="$1"
 
 	for ASSIGNMENTID in $(az role assignment list --subscription $SUBSCRIPTIONID --query "[?(principalType=='ServicePrincipal' && principalName=='')].id" -o tsv | dos2unix); do
-		echo "Deletin orphan role assignment $ASSIGNMENTID"
+		echo "Deleting orphan role assignment $ASSIGNMENTID"
 		az role assignment delete --subscription $SUBSCRIPTIONID --ids $ASSIGNMENTID --yes
 	done
+
+	for DEFINITIONNAME in $(az role definition list --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID --query [].name -o tsv | dos2unix); do
+		echo "Deleting custom role definition $DEFINITIONNAME"
+		az role definition delete --name $DEFINITIONNAME --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID
+	done
+
 }
 
 while getopts 'o:p:drc' OPT; do
@@ -134,11 +144,11 @@ for BACKGROUNDPID in "${BACKGROUNDPIDS[@]}"; do
 	[ ! -z "$BACKGROUNDPID" ] && wait $BACKGROUNDPID
 done
 
-deleteOrphanRoleAssignments $SUBSCRIPTION &
+cleanupRoleDefinitionsAndAssignments $SUBSCRIPTION &
 BACKGROUNDPIDS=( "$!" )
 
 for ENVIRONMENTSUBSCRIPTION in $(cat $PROJECT | jq --raw-output '.. | .subscription? // empty' | dos2unix); do
-	deleteOrphanRoleAssignments $ENVIRONMENTSUBSCRIPTION &
+	cleanupRoleDefinitionsAndAssignments $ENVIRONMENTSUBSCRIPTION &
 	BACKGROUNDPIDS+=( "$!" )
 done
 

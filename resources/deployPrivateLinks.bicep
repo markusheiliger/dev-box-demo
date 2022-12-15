@@ -102,33 +102,20 @@ resource tags 'Microsoft.Resources/tags@2021-04-01' = {
   }
 }
 
-resource environmentDeployerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  name: 'b2780688-3ab3-45cc-83d2-f1c264322d93' // Custom Role - check main template for details
+module deployCustomRoleDefintions 'deployCustomRoleDefinitions.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployCustomRoleDefintions')}'
+  scope: subscription()
 }
 
 resource environmentDeployerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for DeploymentPrincipalId in DeploymentPrincipalIds : {
-  name: guid(resourceGroup().id, environmentDeployerRoleDefinition.id, DeploymentPrincipalId)
+  name: guid(resourceGroup().id, DeploymentPrincipalId)
   scope: resourceGroup()
   properties: {
     principalId: DeploymentPrincipalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: environmentDeployerRoleDefinition.id
+    roleDefinitionId: deployCustomRoleDefintions.outputs.environmentDeployerRoleDefinitionId
   }
 }]
-
-// resource privateDnsZoneContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-//   name: 'b12aa53e-6015-4669-85d0-8515ebb3ae7f' // https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#private-dns-zone-contributor
-// }
-
-// resource privateDnsZoneContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for DeploymentPrincipalId in DeploymentPrincipalIds : {
-//   name: guid(resourceGroup().id, privateDnsZoneContributorRoleDefinition.id, DeploymentPrincipalId)
-//   scope: resourceGroup()
-//   properties: {
-//     principalId: DeploymentPrincipalId
-//     principalType: 'ServicePrincipal'
-//     roleDefinitionId: privateDnsZoneContributorRoleDefinition.id
-//   }
-// }]
 
 module deployPrivateLinkZone 'deployPrivateLinks-Zone.bicep' = [ for PrivateLinkDnsZoneName in PrivateLinkDnsZoneNames : {
   name: '${take(deployment().name, 36)}_${uniqueString('deployPrivateLinkZone', PrivateLinkDnsZoneName)}'

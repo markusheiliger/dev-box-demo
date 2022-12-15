@@ -82,27 +82,18 @@ resource deploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@20
   scope: resourceGroup(DeploymentIdentityIdSegments[2], DeploymentIdentityIdSegments[4])
 }
 
-resource environmentDeployerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  name: 'b2780688-3ab3-45cc-83d2-f1c264322d93' // Custom Role - check main template for details
+module deployCustomRoleDefintions 'deployCustomRoleDefinitions.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployCustomRoleDefintions')}'
+  scope: subscription()
 }
 
-resource environmentDeployerRoleAssignment_privateDnsZone 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(privateDnsZone.id, environmentDeployerRoleDefinition.id, deploymentIdentity.id)
-  scope: privateDnsZone
+resource environmentDeployerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, deploymentIdentity.id)
+  scope: resourceGroup()
   properties: {
     principalId: deploymentIdentity.properties.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: environmentDeployerRoleDefinition.id
-  }
-}
-
-resource environmentDeployerRoleAssignment_virtualNetwork 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(virtualNetwork.id, environmentDeployerRoleDefinition.id, deploymentIdentity.id)
-  scope: virtualNetwork
-  properties: {
-    principalId: deploymentIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: environmentDeployerRoleDefinition.id
+    roleDefinitionId: deployCustomRoleDefintions.outputs.environmentDeployerRoleDefinitionId
   }
 }
 

@@ -12,6 +12,8 @@ param ProjectNetworkId string
 
 param EnvironmentDefinition object
 
+param EnvironmentTypeId string
+
 param DeploymentIdentityId string
 
 // ============================================================================================
@@ -19,11 +21,6 @@ param DeploymentIdentityId string
 var OrganizationDevCenterIdSegments = split(OrganizationDevCenterId, '/')
 
 // ============================================================================================
-
-module deployCustomRoleDefinitions 'deployCustomRoleDefinitions.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployCustomRoleDefinitions')}'
-  scope: subscription()
-}
 
 resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' existing = {
   name: last(OrganizationDevCenterIdSegments)
@@ -36,9 +33,6 @@ resource ownerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01
 
 resource ownerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(subscription().id, ownerRoleDefinition.id, devCenter.id)
-  dependsOn: [ 
-    deployCustomRoleDefinitions
-  ]
   properties: {
     principalId: devCenter.identity.principalId
     principalType: 'ServicePrincipal'
@@ -47,8 +41,11 @@ resource ownerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01
 }
 
 resource environmentResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'Environment'
+  name: 'Environment-${EnvironmentTypeId}'
   location: OrganizationDefinition.location
+  tags: {
+    EnvironmentTypeName: EnvironmentDefinition.name
+  }
 }
 
 module deployEnvironmentResources 'deployEnvironment-Resources.bicep' = {

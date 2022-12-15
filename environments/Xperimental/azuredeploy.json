@@ -1,0 +1,86 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.13.1.58284",
+      "templateHash": "128162874145627891"
+    }
+  },
+  "variables": {
+    "ResourceLocation": "[resourceGroup().location]",
+    "ResourcePrefix": "[uniqueString(resourceGroup().id)]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[format('{0}_{1}', take(deployment().name, 36), uniqueString('EnvironmentSettings'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.13.1.58284",
+              "templateHash": "9558738056586291691"
+            }
+          },
+          "variables": {
+            "$fxv#0": "az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH",
+            "EnvironmentSettingsIdSegments": "[split(resourceGroup().tags.EnvironmentSettingsId, '/')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "GetEnvironmentSettings",
+              "location": "[resourceGroup().location]",
+              "kind": "AzureCLI",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceGroup().tags.EnvironmentDeployerId)]": {}
+                }
+              },
+              "properties": {
+                "forceUpdateTag": "[guid(resourceGroup().id)]",
+                "azCliVersion": "2.40.0",
+                "timeout": "PT30M",
+                "environmentVariables": [
+                  {
+                    "name": "Subscription",
+                    "value": "[variables('EnvironmentSettingsIdSegments')[2]]"
+                  },
+                  {
+                    "name": "ConfigurationStore",
+                    "value": "[last(variables('EnvironmentSettingsIdSegments'))]"
+                  },
+                  {
+                    "name": "EnvironmentType",
+                    "value": "[resourceGroup().tags.EnvironmentTypeName]"
+                  }
+                ],
+                "scriptContent": "[variables('$fxv#0')]",
+                "cleanupPreference": "OnSuccess",
+                "retentionInterval": "P1D"
+              }
+            }
+          ],
+          "outputs": {
+            "Settings": {
+              "type": "object",
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'GetEnvironmentSettings'), '2020-10-01').outputs]"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

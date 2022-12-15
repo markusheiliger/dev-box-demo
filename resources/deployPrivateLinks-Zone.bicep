@@ -28,7 +28,7 @@ resource privateLinkDnsZoneLink_project 'Microsoft.Network/privateDnsZones/virtu
 }
 
 resource privateLinkDnsZoneLink_environment 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = [ for EnvironmentNetworkId in EnvironmentNetworkIds : {
-  name: last(split(EnvironmentNetworkId, '/'))
+  name: '${last(split(EnvironmentNetworkId, '/'))}-${uniqueString(EnvironmentNetworkId)}'
   location: 'global'
   parent: privateLinkDnsZone
   properties: {

@@ -172,6 +172,26 @@ resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-10-12-preview' = [f
   }
 }]
 
+resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2021-10-01-preview' = {
+  name: ProjectDefinition.name
+  location: OrganizationDefinition.location
+  sku: {
+    name: 'standard'
+  }
+}
+
+module deploySettings 'deploySettings.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deploySettings')}'
+  scope: resourceGroup()
+  params: {
+    ConfigurationStoreName: projectSettings.name
+    Settings: {
+      ProjectNetworkId: virtualNetwork.id
+      PrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
+    }
+  }
+}
+
 module deployEnvironment 'deployEnvironment.bicep' = [for Environment in Environments: {
   name: '${take(deployment().name, 36)}_${uniqueString('deployEnvironment', Environment.name)}'
   scope: resourceGroup()
@@ -179,6 +199,7 @@ module deployEnvironment 'deployEnvironment.bicep' = [for Environment in Environ
     OrganizationDefinition: OrganizationDefinition
     OrganizationDevCenterId: OrganizationDevCenterId
     ProjectDefinition: ProjectDefinition
+    ProjectSettingsId: projectSettings.id
     ProjectNetworkId: virtualNetwork.id
     ProjectPrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
     EnvironmentDefinition: Environment
