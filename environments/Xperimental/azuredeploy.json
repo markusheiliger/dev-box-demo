@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "18019571873613736021"
+      "templateHash": "8551394670803496976"
     }
   },
   "variables": {
@@ -29,11 +29,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "15695413354028409606"
+              "templateHash": "11374656676151183906"
             }
           },
           "variables": {
-            "$fxv#0": "RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value 2> /dev/null)\n[ -z \"$RESULT\" ] && RESULT='{}'\necho $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH\n",
+            "$fxv#0": "RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value 2> /dev/null)\n[ -z \"$RESULT\" ] && RESULT='{}'\necho $RESULT\necho $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH\n",
             "EnvironmentSettingsIdSegments": "[split(resourceGroup().tags.EnvironmentSettingsId, '/')]"
           },
           "resources": [
