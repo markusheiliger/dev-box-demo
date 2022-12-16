@@ -172,11 +172,14 @@ resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-10-12-preview' = [f
   }
 }]
 
-resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2021-10-01-preview' = {
+resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2022-05-01' = {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location
   sku: {
     name: 'standard'
+  }
+  properties: {
+    disableLocalAuth: true
   }
 }
 

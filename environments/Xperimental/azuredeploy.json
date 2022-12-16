@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "128162874145627891"
+      "templateHash": "15934122760375984196"
     }
   },
   "variables": {
@@ -29,11 +29,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "9558738056586291691"
+              "templateHash": "15289116722709711482"
             }
           },
           "variables": {
-            "$fxv#0": "az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH",
+            "$fxv#0": "az version\naz appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH",
             "EnvironmentSettingsIdSegments": "[split(resourceGroup().tags.EnvironmentSettingsId, '/')]"
           },
           "resources": [
@@ -51,7 +51,7 @@
               },
               "properties": {
                 "forceUpdateTag": "[guid(resourceGroup().id)]",
-                "azCliVersion": "2.40.0",
+                "azCliVersion": "2.43.0",
                 "timeout": "PT30M",
                 "environmentVariables": [
                   {
@@ -68,7 +68,7 @@
                   }
                 ],
                 "scriptContent": "[variables('$fxv#0')]",
-                "cleanupPreference": "OnSuccess",
+                "cleanupPreference": "OnExpiration",
                 "retentionInterval": "P1D"
               }
             }

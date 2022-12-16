@@ -19,7 +19,7 @@ resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-0
   }
   properties: {
     forceUpdateTag: guid(resourceGroup().id)
-    azCliVersion: '2.40.0'
+    azCliVersion: '2.43.0'
     timeout: 'PT30M'
     environmentVariables: [
       {
@@ -36,7 +36,7 @@ resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-0
       }
     ]
     scriptContent: loadTextContent('GetEnvironmentSettings.sh') 
-    cleanupPreference: 'OnSuccess'
+    cleanupPreference: 'OnExpiration'
     retentionInterval: 'P1D'
   }
 }
