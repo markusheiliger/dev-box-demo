@@ -1,3 +1,3 @@
-echo $AZ_SCRIPTS_OUTPUT_PATH
-az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\0 --fields key value | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH
-cat $AZ_SCRIPTS_OUTPUT_PATH
+RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\0 --fields key value 2> /dev/null)
+[ -z "$RESULT" ] && RESULT='{}'
+echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH
