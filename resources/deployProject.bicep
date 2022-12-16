@@ -179,7 +179,7 @@ resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2022-05
     name: 'standard'
   }
   properties: {
-    disableLocalAuth: true
+    // disableLocalAuth: true
   }
 }
 
