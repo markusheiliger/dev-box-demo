@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "15934122760375984196"
+      "templateHash": "4600412097714723268"
     }
   },
   "variables": {
@@ -29,7 +29,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "15289116722709711482"
+              "templateHash": "9812400533558396424"
             }
           },
           "variables": {
@@ -51,7 +51,7 @@
               },
               "properties": {
                 "forceUpdateTag": "[guid(resourceGroup().id)]",
-                "azCliVersion": "2.43.0",
+                "azCliVersion": "2.42.0",
                 "timeout": "PT30M",
                 "environmentVariables": [
                   {

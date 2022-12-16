@@ -19,7 +19,7 @@ resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-0
   }
   properties: {
     forceUpdateTag: guid(resourceGroup().id)
-    azCliVersion: '2.43.0'
+    azCliVersion: '2.42.0'
     timeout: 'PT30M'
     environmentVariables: [
       {
