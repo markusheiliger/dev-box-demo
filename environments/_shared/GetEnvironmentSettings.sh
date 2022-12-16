@@ -1,11 +1,14 @@
-noLabel=\0
+noLabel=\0 
+
+az account set \
+	--subscription "$Subscription" \
+	--only-show-errors > /dev/null
 
 outputJson=$(az appconfig kv list \
-	--only-show-errors \
-	--subscription "$Subscription" \
 	--name "$ConfigurationStore" \
 	--label "$EnvironmentType,$noLabel" \
-	--fields key value 2>&1)
+	--fields key value \
+	--only-show-errors 2>&1)
 
 if [jq -e . >/dev/null 2>&1 <<<"$outputJson"]; then	
  	echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH

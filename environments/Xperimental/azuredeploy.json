@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "5318755814356370516"
+      "templateHash": "6746011229851298277"
     }
   },
   "variables": {
@@ -29,11 +29,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "17903963824151219208"
+              "templateHash": "13637641930496140437"
             }
           },
           "variables": {
-            "$fxv#0": "noLabel=\\0\n\noutputJson=$(az appconfig kv list \\\n\t--only-show-errors \\\n\t--subscription \"$Subscription\" \\\n\t--name \"$ConfigurationStore\" \\\n\t--label \"$EnvironmentType,$noLabel\" \\\n\t--fields key value 2>&1)\n\nif [jq -e . >/dev/null 2>&1 <<<\"$outputJson\"]; then\t\n \techo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH\nelse\n\tjq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH\nfi\n\n# outputJson=$(jq -n \\\n# \t--arg s \"$Subscription\" \\\n# \t--arg n \"$ConfigurationStore\" \\\n# \t--arg l \"$EnvironmentType,$noLabel\" \\\n# \t'{subscription: $s, name: $n, label: $l}' )\n\n# echo $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n",
+            "$fxv#0": "noLabel=\\0 \n\naz account set \\\n\t--subscription \"$Subscription\" \\\n\t--only-show-errors > /dev/null\n\noutputJson=$(az appconfig kv list \\\n\t--name \"$ConfigurationStore\" \\\n\t--label \"$EnvironmentType,$noLabel\" \\\n\t--fields key value \\\n\t--only-show-errors 2>&1)\n\nif [jq -e . >/dev/null 2>&1 <<<\"$outputJson\"]; then\t\n \techo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH\nelse\n\tjq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH\nfi\n\n# outputJson=$(jq -n \\\n# \t--arg s \"$Subscription\" \\\n# \t--arg n \"$ConfigurationStore\" \\\n# \t--arg l \"$EnvironmentType,$noLabel\" \\\n# \t'{subscription: $s, name: $n, label: $l}' )\n\n# echo $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n",
             "EnvironmentSettingsIdSegments": "[split(resourceGroup().tags.EnvironmentSettingsId, '/')]"
           },
           "resources": [
