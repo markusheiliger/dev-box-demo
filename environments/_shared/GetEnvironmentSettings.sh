@@ -3,9 +3,11 @@
 # echo $RESULT
 # echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH
 
-outputJson=$(jq -n \
-                --arg foo "FOO" \
-                --arg bar "BAR" \
-                '{foo: $foo, bar: $bar}' )
+# outputJson=$(jq -n \
+#                 --arg foo "FOO" \
+#                 --arg bar "BAR" \
+#                 '{foo: $foo, bar: $bar}' )
+
+outputJson=$(az account show)
 
 echo $outputJson > $AZ_SCRIPTS_OUTPUT_PATH
