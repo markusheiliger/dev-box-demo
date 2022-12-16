@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "8729861715310004422"
+      "templateHash": "9210614877036786303"
     }
   },
   "variables": {
@@ -29,11 +29,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "12929119189036581776"
+              "templateHash": "14132050275941363217"
             }
           },
           "variables": {
-            "$fxv#0": "# RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value 2> /dev/null)\n# [ -z \"$RESULT\" ] && RESULT='{}'\n# echo $RESULT\n# echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH\n\noutputJson=$(jq -n \\\n                --arg subscription \"$Subscription\" \\\n                --arg name \"$ConfigurationStore\" \\\n\t\t\t\t--arg label \"$EnvironmentType,\\0\" \\\n                '{subscription: $subscription, name: $name, label: $label}' )\n\necho $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n",
+            "$fxv#0": "# RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value 2> /dev/null)\n# [ -z \"$RESULT\" ] && RESULT='{}'\n# echo $RESULT\n# echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH\n\noutputJson=$(jq -n \\\n                --arg subscription \"$Subscription\" \\\n                --arg name \"$ConfigurationStore\" \\\n\t\t\t\t--arg label \"$EnvironmentType,\\\\0\" \\\n                '{subscription: $subscription, name: $name, label: $label}' )\n\necho $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n",
             "EnvironmentSettingsIdSegments": "[split(resourceGroup().tags.EnvironmentSettingsId, '/')]"
           },
           "resources": [

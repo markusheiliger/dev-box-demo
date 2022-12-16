@@ -6,7 +6,7 @@
 outputJson=$(jq -n \
                 --arg subscription "$Subscription" \
                 --arg name "$ConfigurationStore" \
-				--arg label "$EnvironmentType,\0" \
+				--arg label "$EnvironmentType,\\0" \
                 '{subscription: $subscription, name: $name, label: $label}' )
 
 echo $outputJson > $AZ_SCRIPTS_OUTPUT_PATH
