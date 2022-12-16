@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "5822864273010076616"
+      "templateHash": "2368600313415260546"
     }
   },
   "variables": {
@@ -29,11 +29,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "14036996592131317204"
+              "templateHash": "17945121114739116477"
             }
           },
           "variables": {
-            "$fxv#0": "# RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value 2> /dev/null)\n# [ -z \"$RESULT\" ] && RESULT='{}'\n# echo $RESULT\n# echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH\n\nnoLabel='\\0'\n\n# outputJson=$(az appconfig kv list \\\n# \t--subscription \"$Subscription\" \\ \n# \t--name \"$ConfigurationStore\" \\\n# \t--label \"$EnvironmentType,$noLabel\" \\\n# \t--fields key value | jq 'map({ (.key|tostring): .value }) | add')\n\noutputJson=$(jq -n \\\n\t--arg s \"$Subscription\" \\\n\t--arg n \"$ConfigurationStore\" \\\n\t--arg l \"$EnvironmentType,$noLabel\" \\\n\t'{subscription: $s, name: $n, label: $l}' )\n\necho $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n",
+            "$fxv#0": "# RESULT=$(az appconfig kv list --subscription $Subscription --name $ConfigurationStore --label $EnvironmentType,\\0 --fields key value 2> /dev/null)\n# [ -z \"$RESULT\" ] && RESULT='{}'\n# echo $RESULT\n# echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH\n\nnoLabel=\\0\n\n# outputJson=$(az appconfig kv list \\\n# \t--subscription \"$Subscription\" \\ \n# \t--name \"$ConfigurationStore\" \\\n# \t--label \"$EnvironmentType,$noLabel\" \\\n# \t--fields key value | jq 'map({ (.key|tostring): .value }) | add')\n\noutputJson=$(jq -n \\\n\t--arg s \"$Subscription\" \\\n\t--arg n \"$ConfigurationStore\" \\\n\t--arg l \"$EnvironmentType,$noLabel\" \\\n\t'{subscription: $s, name: $n, label: $l}' )\n\necho $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n",
             "EnvironmentSettingsIdSegments": "[split(resourceGroup().tags.EnvironmentSettingsId, '/')]"
           },
           "resources": [
