@@ -3,11 +3,10 @@
 # echo $RESULT
 # echo $RESULT | jq 'map({ (.key|tostring): .value }) | add' >  $AZ_SCRIPTS_OUTPUT_PATH
 
-# outputJson=$(jq -n \
-#                 --arg foo "FOO" \
-#                 --arg bar "BAR" \
-#                 '{foo: $foo, bar: $bar}' )
-
-outputJson=$(az account show)
+outputJson=$(jq -n \
+                --arg subscription "$Subscription" \
+                --arg name "$ConfigurationStore" \
+				--arg label "$EnvironmentType,\0" \
+                '{subscription: $subscription, name: $name, label: $label}' )
 
 echo $outputJson > $AZ_SCRIPTS_OUTPUT_PATH
