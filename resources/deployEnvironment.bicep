@@ -91,7 +91,7 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-10-12-p
 }
 
 module deploySettings 'deploySettings.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deploySettings', last(split(ProjectSettingsId, '/')))}'
+  name: '${take(deployment().name, 36)}_${uniqueString('deploySettings', EnvironmentDefinition.name)}'
   scope: resourceGroup()
   params: {
     ConfigurationStoreName: last(split(ProjectSettingsId, '/'))
