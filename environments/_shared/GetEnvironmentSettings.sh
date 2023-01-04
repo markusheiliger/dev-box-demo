@@ -3,7 +3,7 @@ noLabel=\0
 outputJson=$(az appconfig kv list \
 	--endpoint "$ConfigurationStore" \
 	--auth-mode login \
-	--label "$EnvironmentType,$noLabel" \
+	--label "$EnvironmentType,\0" \
 	--fields key value \
 	--only-show-errors 2>&1)
 
