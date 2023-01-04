@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "10512689590817124043"
+      "templateHash": "863959475020784249"
     }
   },
   "variables": {
@@ -29,11 +29,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "15088097904072631520"
+              "templateHash": "5659139440862555762"
             }
           },
           "variables": {
-            "$fxv#0": "noLabel=\\0 \n\noutputJson=$(az appconfig kv list \\\n\t--endpoint \"$ConfigurationStore\" \\\n\t--auth-mode login \\\n\t--label \"$EnvironmentType,$noLabel\" \\\n\t--fields key value \\\n\t--only-show-errors 2>&1)\n\nif [jq -e . >/dev/null 2>&1 <<<\"$outputJson\"]; then\t\n \techo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH\nelse\n\tjq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH\nfi\n\n# outputJson=$(jq -n \\\n# \t--arg s \"$Subscription\" \\\n# \t--arg n \"$ConfigurationStore\" \\\n# \t--arg l \"$EnvironmentType,$noLabel\" \\\n# \t'{subscription: $s, name: $n, label: $l}' )\n\n# echo $outputJson > $AZ_SCRIPTS_OUTPUT_PATH\n"
+            "$fxv#0": "noLabel=\\0 \n\noutputJson=$(az appconfig kv list \\\n\t--endpoint \"$ConfigurationStore\" \\\n\t--auth-mode login \\\n\t--label \"$EnvironmentType,$noLabel\" \\\n\t--fields key value \\\n\t--only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
           },
           "resources": [
             {
