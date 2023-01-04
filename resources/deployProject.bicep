@@ -178,8 +178,42 @@ resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2022-05
   sku: {
     name: 'standard'
   }
+  identity: {
+    type: 'SystemAssigned'   
+  }
   properties: {
     // disableLocalAuth: true
+  }
+}
+
+resource projectSecrets 'Microsoft.KeyVault/vaults@2022-07-01' = {
+  name: ProjectDefinition.name
+  location: OrganizationDefinition.location
+  properties: {
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+    sku: {
+      name: 'standard'
+      family: 'A'
+    }
+    createMode: 'default'
+    enabledForDeployment: true
+    enabledForDiskEncryption: true
+    enabledForTemplateDeployment: true
+  }
+}
+
+resource vaultSecretUserRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: '4633458b-17de-408a-b874-0445c86b69e6'
+}
+
+resource vaultSecretUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(projectSecrets.id, vaultSecretUserRoleDefinition.id, projectSettings.id)
+  scope: projectSecrets
+  properties: {
+    principalType: 'ServicePrincipal'
+    principalId: projectSettings.identity.principalId
+    roleDefinitionId: vaultSecretUserRoleDefinition.id
   }
 }
 
@@ -202,6 +236,7 @@ module deployEnvironment 'deployEnvironment.bicep' = [for Environment in Environ
     OrganizationDefinition: OrganizationDefinition
     OrganizationDevCenterId: OrganizationDevCenterId
     ProjectDefinition: ProjectDefinition
+    ProjectSettingsUrl: projectSettings.properties.endpoint
     ProjectSettingsId: projectSettings.id
     ProjectNetworkId: virtualNetwork.id
     ProjectPrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId

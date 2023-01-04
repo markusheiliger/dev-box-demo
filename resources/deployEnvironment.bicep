@@ -12,6 +12,8 @@ param ProjectDefinition object
 
 param ProjectNetworkId string
 
+param ProjectSettingsUrl string
+
 param ProjectSettingsId string
 
 param ProjectPrivateLinkResourceGroupId string
@@ -81,6 +83,7 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-10-12-p
     EnvironmentTypeName: EnvironmentDefinition.name
     EnvironmentTypeId: EnvironmentTypeId
     EnvironmentSettingsId: ProjectSettingsId
+    EnvironmentSettingsUrl: ProjectSettingsUrl
     EnvironmentDeployerId: deploymentIdentity.id
   }
   properties: {

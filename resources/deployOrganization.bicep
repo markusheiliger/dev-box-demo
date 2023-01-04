@@ -189,8 +189,6 @@ resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     enabledForDeployment: true
     enabledForDiskEncryption: true
     enabledForTemplateDeployment: true
-    // enablePurgeProtection: false
-    // enableSoftDelete: false
   }
 }
 

@@ -2,10 +2,6 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-var EnvironmentSettingsIdSegments = split(resourceGroup().tags.EnvironmentSettingsId, '/')
-
-// ============================================================================================
-
 resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   name: 'GetEnvironmentSettings'
   #disable-next-line no-loc-expr-outside-params
@@ -23,12 +19,8 @@ resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-0
     timeout: 'PT30M'
     environmentVariables: [
       {
-        name: 'Subscription'
-        value: EnvironmentSettingsIdSegments[2]
-      }
-      {
         name: 'ConfigurationStore'
-        value: last(EnvironmentSettingsIdSegments)
+        value: resourceGroup().tags.EnvironmentSettingsUrl
       }
       {
         name: 'EnvironmentType'

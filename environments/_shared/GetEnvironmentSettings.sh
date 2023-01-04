@@ -1,11 +1,8 @@
 noLabel=\0 
 
-az account set \
-	--subscription "$Subscription" \
-	--only-show-errors > /dev/null
-
 outputJson=$(az appconfig kv list \
-	--name "$ConfigurationStore" \
+	--endpoint "$ConfigurationStore" \
+	--auth-mode login \
 	--label "$EnvironmentType,$noLabel" \
 	--fields key value \
 	--only-show-errors 2>&1)
