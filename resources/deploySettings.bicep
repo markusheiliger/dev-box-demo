@@ -4,15 +4,24 @@ targetScope = 'resourceGroup'
 
 param ConfigurationStoreName string
 
+param ConfigurationVaultName string
+
 param Label string = ''
 
-param Settings object
+param Settings object = {}
+
+param Secrets object = {}
 
 param ReaderPrincipalIds array = []
 
 // ============================================================================================
 
-var SettingItems = empty(Label) ? items(Settings) : map(items(Settings), item => {
+var SettingItems = empty(Settings) ? [] : empty(Label) ? items(Settings) : map(items(Settings), item => {
+  key: '${item.key}$${Label}'
+  value: item.value
+})
+
+var SecretItems = empty(Secrets) ? [] : empty(Label) ? items(Secrets) : map(items(Secrets), item => {
   key: '${item.key}$${Label}'
   value: item.value
 })

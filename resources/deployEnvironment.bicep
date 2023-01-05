@@ -12,9 +12,11 @@ param ProjectDefinition object
 
 param ProjectNetworkId string
 
-param ProjectSettingsUrl string
+param ProjectConfigurationUrl string
 
 param ProjectSettingsId string
+
+param ProjectSecretsId string
 
 param ProjectPrivateLinkResourceGroupId string
 
@@ -82,8 +84,7 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-10-12-p
   tags: {
     EnvironmentTypeName: EnvironmentDefinition.name
     EnvironmentTypeId: EnvironmentTypeId
-    EnvironmentSettingsId: ProjectSettingsId
-    EnvironmentSettingsUrl: ProjectSettingsUrl
+    ProjectConfigurationUrl: ProjectConfigurationUrl
     EnvironmentDeployerId: deploymentIdentity.id
   }
   properties: {
@@ -98,6 +99,7 @@ module deploySettings 'deploySettings.bicep' = {
   scope: resourceGroup()
   params: {
     ConfigurationStoreName: last(split(ProjectSettingsId, '/'))
+    ConfigurationVaultName: last(split(ProjectSecretsId, '/'))
     Label: EnvironmentDefinition.name
     Settings: {
       EnvironmentNetworkId: deployEnvironmentSubscription.outputs.EnvironmentNetworkId

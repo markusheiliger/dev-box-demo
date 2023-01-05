@@ -220,6 +220,7 @@ module deploySettings 'deploySettings.bicep' = {
   scope: resourceGroup()
   params: {
     ConfigurationStoreName: projectSettings.name
+    ConfigurationVaultName: projectSecrets.name
     Settings: {
       ProjectNetworkId: virtualNetwork.id
       PrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
@@ -234,8 +235,9 @@ module deployEnvironment 'deployEnvironment.bicep' = [for Environment in Environ
     OrganizationDefinition: OrganizationDefinition
     OrganizationDevCenterId: OrganizationDevCenterId
     ProjectDefinition: ProjectDefinition
-    ProjectSettingsUrl: projectSettings.properties.endpoint
+    ProjectConfigurationUrl: projectSettings.properties.endpoint
     ProjectSettingsId: projectSettings.id
+    ProjectSecretsId: projectSecrets.id
     ProjectNetworkId: virtualNetwork.id
     ProjectPrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
     EnvironmentDefinition: Environment

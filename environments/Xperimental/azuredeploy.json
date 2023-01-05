@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "423174366826706906"
+      "templateHash": "1604348294235032778"
     }
   },
   "resources": [
@@ -25,11 +25,11 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "8064691906302229704"
+              "templateHash": "1104302794504180248"
             }
           },
           "variables": {
-            "$fxv#0": "outputJson=$(az appconfig kv list \\\n\t--endpoint \"$ConfigurationStore\" \\\n\t--auth-mode login \\\n\t--resolve-keyvault \\\n\t--label \"$EnvironmentType,\\0\" \\\n\t# --fields key value \\\n\t--only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
+            "$fxv#0": "outputJson=$(az appconfig kv list --endpoint \"$ConfigurationStore\" --auth-mode login --resolve-keyvault --label \"$EnvironmentType,\\0\" --only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
           },
           "resources": [
             {
@@ -51,7 +51,7 @@
                 "environmentVariables": [
                   {
                     "name": "ConfigurationStore",
-                    "value": "[resourceGroup().tags.EnvironmentSettingsUrl]"
+                    "value": "[resourceGroup().tags.ProjectConfigurationUrl]"
                   },
                   {
                     "name": "EnvironmentType",

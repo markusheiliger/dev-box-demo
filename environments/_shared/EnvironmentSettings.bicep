@@ -20,7 +20,7 @@ resource settings 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
     environmentVariables: [
       {
         name: 'ConfigurationStore'
-        value: resourceGroup().tags.EnvironmentSettingsUrl
+        value: resourceGroup().tags.ProjectConfigurationUrl
       }
       {
         name: 'EnvironmentType'
