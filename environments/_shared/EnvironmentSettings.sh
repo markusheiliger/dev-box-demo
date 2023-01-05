@@ -3,7 +3,7 @@ outputJson=$(az appconfig kv list \
 	--auth-mode login \
 	--resolve-keyvault \
 	--label "$EnvironmentType,\0" \
-	--fields key value \
+	# --fields key value \
 	--only-show-errors 2>&1)
 
 (echo $outputJson | jq -e . >/dev/null 2>&1) \
