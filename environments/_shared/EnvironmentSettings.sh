@@ -1,5 +1,3 @@
-noLabel=\0 
-
 outputJson=$(az appconfig kv list \
 	--endpoint "$ConfigurationStore" \
 	--auth-mode login \

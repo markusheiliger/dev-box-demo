@@ -5,12 +5,8 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "6507090326271633955"
+      "templateHash": "8236849733022262644"
     }
-  },
-  "variables": {
-    "ResourceLocation": "[resourceGroup().location]",
-    "ResourcePrefix": "[uniqueString(resourceGroup().id)]"
   },
   "resources": [
     {
@@ -29,17 +25,17 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "5041612308741883274"
+              "templateHash": "302982947586030305"
             }
           },
           "variables": {
-            "$fxv#0": "noLabel=\\0 \n\noutputJson=$(az appconfig kv list \\\n\t--endpoint \"$ConfigurationStore\" \\\n\t--auth-mode login \\\n\t--label \"$EnvironmentType,\\0\" \\\n\t--fields key value \\\n\t--only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
+            "$fxv#0": "outputJson=$(az appconfig kv list \\\n\t--endpoint \"$ConfigurationStore\" \\\n\t--auth-mode login \\\n\t--label \"$EnvironmentType,\\0\" \\\n\t--fields key value \\\n\t--only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
           },
           "resources": [
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "GetEnvironmentSettings",
+              "name": "EnvironmentSettings",
               "location": "[resourceGroup().location]",
               "kind": "AzureCLI",
               "identity": {
@@ -63,7 +59,7 @@
                   }
                 ],
                 "scriptContent": "[variables('$fxv#0')]",
-                "cleanupPreference": "OnExpiration",
+                "cleanupPreference": "Always",
                 "retentionInterval": "P1D"
               }
             }
@@ -71,7 +67,7 @@
           "outputs": {
             "Settings": {
               "type": "object",
-              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'GetEnvironmentSettings'), '2020-10-01').outputs]"
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'EnvironmentSettings'), '2020-10-01').outputs]"
             }
           }
         }

@@ -2,8 +2,8 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
-  name: 'GetEnvironmentSettings'
+resource settings 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+  name: 'EnvironmentSettings'
   #disable-next-line no-loc-expr-outside-params
   location: resourceGroup().location
   kind: 'AzureCLI'
@@ -27,12 +27,12 @@ resource getEnvironmentSettings 'Microsoft.Resources/deploymentScripts@2020-10-0
         value: resourceGroup().tags.EnvironmentTypeName
       }
     ]
-    scriptContent: loadTextContent('GetEnvironmentSettings.sh') 
-    cleanupPreference: 'OnExpiration'
+    scriptContent: loadTextContent('EnvironmentSettings.sh') 
+    cleanupPreference: 'Always'
     retentionInterval: 'P1D'
   }
 }
 
 // ============================================================================================
 
-output Settings object = getEnvironmentSettings.properties.outputs
+output Settings object = settings.properties.outputs

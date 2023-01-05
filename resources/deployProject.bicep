@@ -172,20 +172,6 @@ resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-10-12-preview' = [f
   }
 }]
 
-resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2022-05-01' = {
-  name: ProjectDefinition.name
-  location: OrganizationDefinition.location
-  sku: {
-    name: 'standard'
-  }
-  identity: {
-    type: 'SystemAssigned'   
-  }
-  properties: {
-    // disableLocalAuth: true
-  }
-}
-
 resource projectSecrets 'Microsoft.KeyVault/vaults@2022-07-01' = {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location
@@ -197,9 +183,21 @@ resource projectSecrets 'Microsoft.KeyVault/vaults@2022-07-01' = {
       family: 'A'
     }
     createMode: 'default'
-    enabledForDeployment: true
-    enabledForDiskEncryption: true
-    enabledForTemplateDeployment: true
+  }
+}
+
+resource projectSettings 'Microsoft.AppConfiguration/configurationStores@2022-05-01' = {
+  name: ProjectDefinition.name
+  location: OrganizationDefinition.location
+  sku: {
+    name: 'standard'
+  }
+  identity: {
+    type: 'SystemAssigned'   
+  }
+  properties: {
+    // disableLocalAuth: true
+    publicNetworkAccess: 'Enabled'
   }
 }
 
