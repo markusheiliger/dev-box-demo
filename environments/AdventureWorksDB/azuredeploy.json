@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "4320761500126315958"
+      "templateHash": "533934780469435878"
     }
   },
   "parameters": {
@@ -100,7 +100,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "6856156049955737184"
+              "templateHash": "5935231369323158411"
             }
           },
           "parameters": {
@@ -109,8 +109,7 @@
             }
           },
           "variables": {
-            "$fxv#0": "DNSZoneId=$(az network private-dns zone show --subscription $Subscription --resource-group $ResourceGroup --name $(echo $DNSZoneName | tr '[:upper:]' '[:lower:]') --query id -o tsv --only-show-errors 2> /dev/null)\njq -n --arg id \"$DNSZoneId\" '{ DNSZoneId: $id }' >  $AZ_SCRIPTS_OUTPUT_PATH",
-            "PrivateLinkResourceGroupIdSegments": "[split(resourceGroup().tags.PrivateLinkResourceGroupId, '/')]"
+            "$fxv#0": "DNSZoneId=$(az network private-dns zone show --subscription $Subscription --resource-group $ResourceGroup --name $(echo $DNSZoneName | tr '[:upper:]' '[:lower:]') --query id -o tsv --only-show-errors 2> /dev/null)\njq -n --arg id \"$DNSZoneId\" '{ DNSZoneId: $id }' >  $AZ_SCRIPTS_OUTPUT_PATH"
           },
           "resources": [
             {

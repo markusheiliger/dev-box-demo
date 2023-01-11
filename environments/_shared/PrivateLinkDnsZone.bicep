@@ -6,10 +6,6 @@ param DNSZoneName string
 
 // ============================================================================================
 
-var PrivateLinkResourceGroupIdSegments = split(resourceGroup().tags.PrivateLinkResourceGroupId, '/')
-
-// ============================================================================================
-
 module EnvironmentSettings 'EnvironmentSettings.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString(deployment().name)}'
 }
