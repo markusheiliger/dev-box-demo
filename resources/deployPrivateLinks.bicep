@@ -13,6 +13,7 @@ param DeploymentPrincipalIds array = []
 var PreProvisionPrivateLinkDnsZoneNames = [
   'privatelink.vaultcore.azure.net'
   'privatelink.azconfig.io'
+  'privatelink${environment().suffixes.sqlServerHostname}'
 ]
 
 // we utilize the union function to remove duplicates from the PreProvisionPrivateLinkDnsZoneNames array
