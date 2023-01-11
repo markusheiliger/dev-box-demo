@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.13.1.58284",
-      "templateHash": "15715526120089514078"
+      "templateHash": "4320761500126315958"
     }
   },
   "parameters": {
@@ -19,8 +19,7 @@
   "variables": {
     "ResourceLocation": "[resourceGroup().location]",
     "ResourcePrefix": "[uniqueString(resourceGroup().id)]",
-    "SampleName": "AdventureWorksLT",
-    "EnvironmentNetworkIdSegments": "[split(resourceGroup().tags.EnvironmentNetworkId, '/')]"
+    "SampleName": "AdventureWorksLT"
   },
   "resources": [
     {
@@ -61,7 +60,7 @@
       "location": "[variables('ResourceLocation')]",
       "properties": {
         "subnet": {
-          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', variables('EnvironmentNetworkIdSegments')[2], variables('EnvironmentNetworkIdSegments')[4]), 'Microsoft.Network/virtualNetworks/subnets', last(variables('EnvironmentNetworkIdSegments')), 'default')]"
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('EnvironmentSettings'))), '2020-10-01').outputs.Settings.value.EnvironmentNetworkId, '/')[2], split(reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('EnvironmentSettings'))), '2020-10-01').outputs.Settings.value.EnvironmentNetworkId, '/')[4]), 'Microsoft.Network/virtualNetworks/subnets', last(split(reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('EnvironmentSettings'))), '2020-10-01').outputs.Settings.value.EnvironmentNetworkId, '/')), 'default')]"
         },
         "privateLinkServiceConnections": [
           {
@@ -76,6 +75,7 @@
         ]
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString('EnvironmentSettings')))]",
         "[resourceId('Microsoft.Sql/servers', format('{0}-SQL', variables('ResourcePrefix')))]"
       ]
     },
@@ -100,7 +100,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.13.1.58284",
-              "templateHash": "14487418475932168943"
+              "templateHash": "6856156049955737184"
             }
           },
           "parameters": {
@@ -116,13 +116,13 @@
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[format('GetPrivateLinkDnsZoneId-{0}', replace(parameters('DNSZoneName'), '.', '_'))]",
+              "name": "[format('PrivateLinkDnsZone-{0}', replace(parameters('DNSZoneName'), '.', '_'))]",
               "location": "[resourceGroup().location]",
               "kind": "AzureCLI",
               "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
-                  "[format('{0}', resourceGroup().tags.PrivateLinkAutomationIdentityId)]": {}
+                  "[format('{0}', resourceGroup().tags.EnvironmentDeployerId)]": {}
                 }
               },
               "properties": {
@@ -132,11 +132,11 @@
                 "environmentVariables": [
                   {
                     "name": "Subscription",
-                    "value": "[variables('PrivateLinkResourceGroupIdSegments')[2]]"
+                    "value": "[split(reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString(deployment().name))), '2020-10-01').outputs.Settings.value.PrivateLinkResourceGroupId, '/')[2]]"
                   },
                   {
                     "name": "ResourceGroup",
-                    "value": "[variables('PrivateLinkResourceGroupIdSegments')[4]]"
+                    "value": "[split(reference(resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString(deployment().name))), '2020-10-01').outputs.Settings.value.PrivateLinkResourceGroupId, '/')[4]]"
                   },
                   {
                     "name": "DNSZoneName",
@@ -146,13 +146,144 @@
                 "scriptContent": "[variables('$fxv#0')]",
                 "cleanupPreference": "OnSuccess",
                 "retentionInterval": "P1D"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deployments', format('{0}_{1}', take(deployment().name, 36), uniqueString(deployment().name)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}_{1}', take(deployment().name, 36), uniqueString(deployment().name))]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.13.1.58284",
+                      "templateHash": "1104302794504180248"
+                    }
+                  },
+                  "variables": {
+                    "$fxv#0": "outputJson=$(az appconfig kv list --endpoint \"$ConfigurationStore\" --auth-mode login --resolve-keyvault --label \"$EnvironmentType,\\0\" --only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "EnvironmentSettings",
+                      "location": "[resourceGroup().location]",
+                      "kind": "AzureCLI",
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', resourceGroup().tags.EnvironmentDeployerId)]": {}
+                        }
+                      },
+                      "properties": {
+                        "forceUpdateTag": "[guid(resourceGroup().id)]",
+                        "azCliVersion": "2.42.0",
+                        "timeout": "PT30M",
+                        "environmentVariables": [
+                          {
+                            "name": "ConfigurationStore",
+                            "value": "[resourceGroup().tags.ProjectConfigurationUrl]"
+                          },
+                          {
+                            "name": "EnvironmentType",
+                            "value": "[resourceGroup().tags.EnvironmentTypeName]"
+                          }
+                        ],
+                        "scriptContent": "[variables('$fxv#0')]",
+                        "cleanupPreference": "Always",
+                        "retentionInterval": "P1D"
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "Settings": {
+                      "type": "object",
+                      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'EnvironmentSettings'), '2020-10-01').outputs]"
+                    }
+                  }
+                }
               }
             }
           ],
           "outputs": {
             "DNSZoneId": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', format('GetPrivateLinkDnsZoneId-{0}', replace(parameters('DNSZoneName'), '.', '_'))), '2020-10-01').outputs.DNSZoneId]"
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', format('PrivateLinkDnsZone-{0}', replace(parameters('DNSZoneName'), '.', '_'))), '2020-10-01').outputs.DNSZoneId]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "[format('{0}_{1}', take(deployment().name, 36), uniqueString('EnvironmentSettings'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.13.1.58284",
+              "templateHash": "1104302794504180248"
+            }
+          },
+          "variables": {
+            "$fxv#0": "outputJson=$(az appconfig kv list --endpoint \"$ConfigurationStore\" --auth-mode login --resolve-keyvault --label \"$EnvironmentType,\\0\" --only-show-errors 2>&1)\n\n(echo $outputJson | jq -e . >/dev/null 2>&1) \\\n\t&& (echo $outputJson | jq 'map({ (.key|tostring): .value }) | add' > $AZ_SCRIPTS_OUTPUT_PATH) \\\n\t|| (jq -n --arg e \"$outputJson\" '{error: $e}' > $AZ_SCRIPTS_OUTPUT_PATH)\n\n"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "EnvironmentSettings",
+              "location": "[resourceGroup().location]",
+              "kind": "AzureCLI",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceGroup().tags.EnvironmentDeployerId)]": {}
+                }
+              },
+              "properties": {
+                "forceUpdateTag": "[guid(resourceGroup().id)]",
+                "azCliVersion": "2.42.0",
+                "timeout": "PT30M",
+                "environmentVariables": [
+                  {
+                    "name": "ConfigurationStore",
+                    "value": "[resourceGroup().tags.ProjectConfigurationUrl]"
+                  },
+                  {
+                    "name": "EnvironmentType",
+                    "value": "[resourceGroup().tags.EnvironmentTypeName]"
+                  }
+                ],
+                "scriptContent": "[variables('$fxv#0')]",
+                "cleanupPreference": "Always",
+                "retentionInterval": "P1D"
+              }
+            }
+          ],
+          "outputs": {
+            "Settings": {
+              "type": "object",
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'EnvironmentSettings'), '2020-10-01').outputs]"
             }
           }
         }

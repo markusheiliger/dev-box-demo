@@ -15,13 +15,22 @@ var ResourcePrefix = uniqueString(resourceGroup().id)
 
 var SampleName = 'AdventureWorksLT'
 
-var EnvironmentNetworkIdSegments = split(resourceGroup().tags.EnvironmentNetworkId, '/')
-
 // ============================================================================================
 
+module PrivateLinkDnsZone '../_shared/PrivateLinkDnsZone.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('privatelinkDnsZone')}'
+  params: {
+    DNSZoneName: 'privatelink${environment().suffixes.sqlServerHostname}'
+  }
+}
+
+module EnvironmentSettings '../_shared/EnvironmentSettings.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('EnvironmentSettings')}'
+}
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-05-01' existing = {
-  name: last(EnvironmentNetworkIdSegments)
-  scope: resourceGroup(EnvironmentNetworkIdSegments[2], EnvironmentNetworkIdSegments[4])
+  name: last(split(EnvironmentSettings.outputs.Settings.EnvironmentNetworkId, '/'))
+  scope: resourceGroup(split(EnvironmentSettings.outputs.Settings.EnvironmentNetworkId, '/')[2], split(EnvironmentSettings.outputs.Settings.EnvironmentNetworkId, '/')[4])
 }
 
 resource defaultSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-05-01' existing = {
@@ -53,13 +62,6 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2021-11-01' = {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 104857600
     sampleName: SampleName
-  }
-}
-
-module getPrivateLinkDnsZoneId '../_shared/GetPrivateLinkDnsZoneId.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('privatelinkDnsZone')}'
-  params: {
-    DNSZoneName: 'privatelink${environment().suffixes.sqlServerHostname}'
   }
 }
 
