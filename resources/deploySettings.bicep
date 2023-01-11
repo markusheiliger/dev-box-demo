@@ -10,6 +10,7 @@ param Label string = ''
 
 param Settings object = {}
 
+@secure()
 param Secrets object = {}
 
 param ReaderPrincipalIds array = []
@@ -32,6 +33,10 @@ resource appConfigurationStore 'Microsoft.AppConfiguration/configurationStores@2
   name: ConfigurationStoreName
 }
 
+resource appConfigurationVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
+  name: ConfigurationVaultName
+}
+
 resource appConfigurationDataReaderRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '516239f1-63e1-4d78-a4de-a74fb236a071' // https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#app-configuration-data-reader
 }
@@ -46,11 +51,27 @@ resource appConfigurationDataReaderRoleAssignment 'Microsoft.Authorization/roleA
   }
 }] 
 
-resource appConfigurationSetting 'Microsoft.AppConfiguration/configurationStores/keyValues@2021-10-01-preview' = [for Item in SettingItems: {
+resource appConfigurationSettingItem 'Microsoft.AppConfiguration/configurationStores/keyValues@2021-10-01-preview' = [for Item in SettingItems: {
   parent: appConfigurationStore
   name: Item.key
   properties: {
     value: Item.value
+  }
+}] 
+
+resource appConfigurationSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = [for Item in SecretItems: {
+  parent: appConfigurationVault
+  name: replace(Item.key, '$', '-')
+  properties:{
+    value: Item.value    
+  }
+}]
+
+resource appConfigurationSecretItem 'Microsoft.AppConfiguration/configurationStores/keyValues@2021-10-01-preview' = [for (Item, Index) in SecretItems: {
+  parent: appConfigurationStore
+  name: Item.key
+  properties: {
+    value: string({ uri: appConfigurationSecret[Index].properties.secretUri })
   }
 }] 
 

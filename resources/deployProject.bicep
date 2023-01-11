@@ -27,6 +27,9 @@ var DevBoxes = contains(OrganizationDefinition, 'devboxes') ? OrganizationDefini
 var ProjectAdmins = contains(ProjectDefinition, 'admins') ? ProjectDefinition.admins : []
 var ProjectUsers = contains(ProjectDefinition, 'users') ? ProjectDefinition.users : []
 
+var ProjectSettings = contains(ProjectDefinition, 'settings') ? ProjectDefinition.settings : {}
+var ProjectSecrets = contains(ProjectDefinition, 'secrets') ? ProjectDefinition.secrets : {}
+
 // ============================================================================================
 
 resource project 'Microsoft.DevCenter/projects@2022-10-12-preview' = {
@@ -90,7 +93,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' = {
     }
     subnets: [
       {
-        name: '${ProjectDefinition.name}Subnet'
+        name: 'default'
         properties: {
           addressPrefix: ProjectDefinition.ipRange
         }
@@ -182,7 +185,10 @@ resource projectSecrets 'Microsoft.KeyVault/vaults@2022-07-01' = {
       name: 'standard'
       family: 'A'
     }
-    createMode: 'default'
+    networkAcls: {
+      defaultAction: 'Allow'
+      bypass: 'AzureServices'
+    }
   }
 }
 
@@ -221,16 +227,22 @@ module deploySettings 'deploySettings.bicep' = {
   params: {
     ConfigurationStoreName: projectSettings.name
     ConfigurationVaultName: projectSecrets.name
-    Settings: {
+    Settings: union(ProjectSettings, {
       ProjectNetworkId: virtualNetwork.id
       PrivateLinkResourceGroupId: ProjectPrivateLinkResourceGroupId
-    }
+    })
+    Secrets: union(ProjectSecrets, {
+
+    })
   }
 }
 
 module deployEnvironment 'deployEnvironment.bicep' = [for Environment in Environments: {
   name: '${take(deployment().name, 36)}_${uniqueString('deployEnvironment', Environment.name)}'
   scope: resourceGroup()
+  dependsOn: [
+    deploySettings
+  ]
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationDevCenterId: OrganizationDevCenterId
@@ -251,6 +263,16 @@ module deployPrivateLinks 'deployPrivateLinks.bicep' = {
     ProjectNetworkId: virtualNetwork.id
     EnvironmentNetworkIds: [for i in range(0, length(Environments)): deployEnvironment[i].outputs.EnvironmentNetworkId]
     DeploymentPrincipalIds: [for i in range(0, length(Environments)): deployEnvironment[i].outputs.DeploymentPrincipalId]
+  }
+}
+
+module deployWireGuard 'deployWireGuard.bicep' = if (!empty(contains(ProjectDefinition, 'gateway') ? ProjectDefinition.gateway : {})) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployWireGuard')}'
+  scope: resourceGroup()
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    ProjectDefinition: ProjectDefinition
+    ProjectNetworkId: virtualNetwork.id
   }
 }
 

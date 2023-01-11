@@ -16,6 +16,7 @@ param ProjectConfigurationUrl string
 
 param ProjectSettingsId string
 
+#disable-next-line secure-secrets-in-params
 param ProjectSecretsId string
 
 param ProjectPrivateLinkResourceGroupId string
@@ -27,6 +28,9 @@ param EnvironmentDefinition object
 
 var OrganizationDevCenterIdSegments = split(OrganizationDevCenterId, '/')
 var EnvironmentTypeId = guid(resourceId('Microsoft.DevCenter/projects/environmentTypes', project.name, EnvironmentDefinition.name))
+
+var EnvironmentSettings = contains(EnvironmentDefinition, 'settings') ? EnvironmentDefinition.settings : {}
+var EnvironmentSecrets = contains(EnvironmentDefinition, 'secrets') ? EnvironmentDefinition.secrets : {}
 
 // ============================================================================================
 
@@ -101,10 +105,13 @@ module deploySettings 'deploySettings.bicep' = {
     ConfigurationStoreName: last(split(ProjectSettingsId, '/'))
     ConfigurationVaultName: last(split(ProjectSecretsId, '/'))
     Label: EnvironmentDefinition.name
-    Settings: {
+    Settings: union(EnvironmentSettings, {
       EnvironmentNetworkId: deployEnvironmentSubscription.outputs.EnvironmentNetworkId
       DeploymentPrincipalId: deploymentIdentity.properties.principalId
-    }
+    })
+    Secrets: union(EnvironmentSecrets, {
+
+    })
     ReaderPrincipalIds: [deploymentIdentity.properties.principalId]
   }
 }

@@ -20,6 +20,12 @@ resetSubscription() {
 	local SUBSCRIPTIONID="$1"
 	local WAIT4OPERATIONS=0
 	
+	for POOLID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects/pools' --query [].id -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Waiting for pool '$POOLID' ..." \
+			&& az resource show --ids $POOLID > /dev/null 2>&1 \
+			&& az devcenter admin pool wait --ids $POOLID --created --only-show-errors
+	done 
+
 	for DEPLOYMENTNAME in $(az deployment sub list --subscription $SUBSCRIPTIONID --query [].name -o tsv | dos2unix); do
 		echo "$SUBSCRIPTIONID - Deleting deployment '$DEPLOYMENTNAME' ..." \
 			&& az deployment sub delete --subscription $SUBSCRIPTIONID --name $DEPLOYMENTNAME --no-wait
@@ -39,7 +45,6 @@ resetSubscription() {
 	fi
 
 	WAIT4OPERATIONS=0
-
 
 	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
 		WAIT4OPERATIONS=1
