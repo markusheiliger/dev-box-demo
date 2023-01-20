@@ -13,107 +13,142 @@ param Windows365PrinicalId string
 
 // ============================================================================================
 
-var Extensions = {
-  Bastion: false     // deploy bastion host on the organization (hub) network to manage shared resources
-  Firewall: false    // deploy a firewall on the organization (hub) network to manage network / resource access
-  Gateway: false    // deploy a VPN gateway on the organization (hub) network to connect external networks / resources
-  Services: false    // deploy shared service on the organization (hub) network and make them available to all projects
+var Features = {
+  TestHost: true
+} 
+
+var OrganizationInfo = {
+  NetworkId: deployCoreOrganizationResources.outputs.NetworkId
+  DefaultSubNetId: deployCoreOrganizationResources.outputs.DefaultSubNetId
+  DnsZoneId: deployCoreOrganizationResources.outputs.DnsZoneId
+}
+
+var ProjectInfo = {
+  NetworkId: deployCoreProjectResources.outputs.NetworkId
+  DefaultSubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
+  DnsZoneId: deployCoreProjectResources.outputs.DnsZoneId
 }
 
 // ============================================================================================
 
-resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
+resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: 'ORG-${OrganizationDefinition.name}'
   location: OrganizationDefinition.location
-  properties: {}
 }
 
-module deployOrganization 'deployOrganization.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString(OrganizationDefinition.name)}'
+module deployCoreOrganizationResources 'core/deployCore-OrganizationResources.bicep' ={
+  name: '${take(deployment().name, 36)}_${uniqueString('deployCoreOrganizationResources')}'
   scope: organizationResourceGroup
-  params:{
-    OrganizationDefinition: OrganizationDefinition
-    Windows365PrinicalId: Windows365PrinicalId
-  }
-}
-
-resource servicesResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = if (Extensions.Services) {
-  name: 'ORG-${OrganizationDefinition.name}-Services'
-  location: OrganizationDefinition.location
-  properties: {}
-}
-
-module deployOrganizationServices 'deployOrganization-Services.bicep' = if (Extensions.Services) {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationResources')}'
-  scope: servicesResourceGroup
   params: {
     OrganizationDefinition: OrganizationDefinition
-    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
+    ProjectDefinition: ProjectDefinition
   }
 }
 
-resource bastionResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = if (Extensions.Bastion) {
-  name: 'ORG-${OrganizationDefinition.name}-Bastion'
+resource projectResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: 'PRJ-${ProjectDefinition.name}'
   location: OrganizationDefinition.location
-  properties: {}
 }
 
-module deployOrganizationBastion 'deployOrganization-Bastion.bicep' = if (Extensions.Bastion) {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationBastion')}'
-  scope: bastionResourceGroup
+module deployCoreProjectResources 'core/deployCore-ProjectResources.bicep' ={
+  name: '${take(deployment().name, 36)}_${uniqueString('deployCoreProjectResources')}'
+  scope: projectResourceGroup
   params: {
     OrganizationDefinition: OrganizationDefinition
-    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
+    ProjectDefinition: ProjectDefinition
   }
 }
 
-module deployOrganizationGateway 'deployOrganization-Gateway.bicep' = if (Extensions.Gateway) {
+module environments 'environments.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('environments')}'
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    OrganizationInfo: OrganizationInfo
+    ProjectDefinition: ProjectDefinition
+    ProjectInfo: ProjectInfo
+    Features: Features
+  }
+}
+
+resource privateLinkZonesResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: '${organizationResourceGroup.name}-PL'
+  location: OrganizationDefinition.location
+}
+
+module deployCorePrivateLinkZones 'core/deployCore-PrivateLinkZones.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployCorePrivateLinkZones')}'
+  scope: privateLinkZonesResourceGroup
+  params: {
+    NetworkId: deployCoreOrganizationResources.outputs.NetworkId
+    PrivateDnsZones: [
+      'privatelink.blob.${az.environment().suffixes.storage}'
+    ]
+  }
+}
+
+module peerOrganizationToProject 'utils/peerNetworks.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('peerOrganizationToProject')}'
+  params: {
+    HubNetworkId: deployCoreOrganizationResources.outputs.NetworkId
+    SpokeNetworkIds: [ deployCoreProjectResources.outputs.NetworkId ]
+  }
+}
+
+module peerProjectToEnvironments 'utils/peerNetworks.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('peerProjectToEnvironments')}'
+  params: {
+    HubNetworkId: deployCoreProjectResources.outputs.NetworkId
+    SpokeNetworkIds: environments.outputs.NetworkIds
+  }
+}
+
+module deployOrganizationGateway 'core/deployCore-Gateway.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationGateway')}'
   scope: organizationResourceGroup
+  dependsOn: [
+    peerOrganizationToProject
+    peerProjectToEnvironments
+  ]
   params: {
     OrganizationDefinition: OrganizationDefinition
-    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
-  }
-}
-
-module deployOrganizationFirewall 'deployOrganization-Firewall.bicep' = if (Extensions.Firewall) {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationFirewall')}'
-  scope: organizationResourceGroup
-  params: {
-    OrganizationDefinition: OrganizationDefinition
-    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    OrganizationWorkspaceId: deployOrganization.outputs.OrganizationWorkspaceId
-  }
-}
-
-resource projectResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
-  name: 'PRJ-${OrganizationDefinition.name}-${ProjectDefinition.name}'
-  location: OrganizationDefinition.location
-  properties: {}
-}
-
-resource privateLinksResourceGroup 'Microsoft.Resources/resourceGroups@2019-10-01' = {
-  name: 'PRJ-${OrganizationDefinition.name}-${ProjectDefinition.name}-PL'
-  location: OrganizationDefinition.location
-  properties: {}
-}
-
-module deployProject 'deployProject.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployProject')}'
-  scope: projectResourceGroup
-  params:{
-    OrganizationDefinition: OrganizationDefinition
-    OrganizationNetworkId: deployOrganization.outputs.OrganizationNetworkId
-    OrganizationDevCenterId: deployOrganization.outputs.OrganizationDevCenterId
-    OrganizationGatewayIpAddress: Extensions.Firewall ? deployOrganizationFirewall.outputs.GatewayIPAddress : ''
     ProjectDefinition: ProjectDefinition
-    ProjectPrivateLinkResourceGroupId: privateLinksResourceGroup.id
+    SubNetId: deployCoreOrganizationResources.outputs.DefaultSubNetId
   }
 }
 
-// ============================================================================================
+module deployOrganizationTestHost 'utils/deployTestHost.bicep' = if (Features.TestHost) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationTestHost')}'
+  scope: organizationResourceGroup
+  dependsOn: [
+    deployOrganizationGateway
+  ]
+  params: {
+    SubNetId: deployCoreOrganizationResources.outputs.DefaultSubNetId
+  }
+}
 
+module deployProjectGateway 'core/deployCore-Gateway.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployProjectGateway')}'
+  scope: projectResourceGroup
+  dependsOn: [
+    peerOrganizationToProject
+    peerProjectToEnvironments
+  ]
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    ProjectDefinition: ProjectDefinition
+    SubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
+  }
+}
+
+module deployProjectTestHost 'utils/deployTestHost.bicep' = if (Features.TestHost) {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployProjectTestHost')}'
+  scope: projectResourceGroup
+  dependsOn: [
+    deployProjectGateway
+  ]
+  params: {
+    SubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
+  }
+}
 

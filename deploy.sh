@@ -43,8 +43,12 @@ resetSubscription() {
 		echo "$SUBSCRIPTIONID - Waiting for resource group deletion ..."
 		while [ ! -z "$(az group list --subscription $SUBSCRIPTIONID --query [].name -o tsv | dos2unix)" ]; do sleep 5; done
 	fi
+}
 
-	WAIT4OPERATIONS=0
+cleanupPurgableResources() {
+
+	local SUBSCRIPTIONID="$1"
+	local WAIT4OPERATIONS=0
 
 	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
 		WAIT4OPERATIONS=1
@@ -63,6 +67,7 @@ resetSubscription() {
 		while [ ! -z "$(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix)" ]; do sleep 5; done
 		sleep 60 # give Azure some additional time to get it's state right after all these purges
 	fi
+
 }
 
 cleanupRoleDefinitionsAndAssignments() {
@@ -149,10 +154,14 @@ for BACKGROUNDPID in "${BACKGROUNDPIDS[@]}"; do
 	[ ! -z "$BACKGROUNDPID" ] && wait $BACKGROUNDPID
 done
 
-cleanupRoleDefinitionsAndAssignments $SUBSCRIPTION &
+cleanupPurgableResources $SUBSCRIPTION &
 BACKGROUNDPIDS=( "$!" )
+cleanupRoleDefinitionsAndAssignments $SUBSCRIPTION &
+BACKGROUNDPIDS+=( "$!" )
 
 for ENVIRONMENTSUBSCRIPTION in $(cat $PROJECT | jq --raw-output '.. | .subscription? // empty' | dos2unix); do
+	cleanupPurgableResources $ENVIRONMENTSUBSCRIPTION &
+	BACKGROUNDPIDS+=( "$!" )
 	cleanupRoleDefinitionsAndAssignments $ENVIRONMENTSUBSCRIPTION &
 	BACKGROUNDPIDS+=( "$!" )
 done

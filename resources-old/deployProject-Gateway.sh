@@ -1,7 +1,13 @@
 #!/bin/bash
 
+# ==========================================================================================================================================
+# SETUP
+# ==========================================================================================================================================
+
 # update and upgrade packages
 sudo apt-get update && sudo apt-get upgrade -y
+
+exit 0 # just to the deployment working againt
 
 # install required packages
 sudo apt-get install coreutils curl jq wireguard -y
@@ -15,6 +21,10 @@ sudo sysctl -p
 # sudo ufw allow 51820/udp
 # sudo ufw enable
 
+# ==========================================================================================================================================
+# VARIABLES
+# ==========================================================================================================================================
+
 WIREGUARD_IPPATTERN='10.0.0.*/24'
 
 # create server keys
@@ -24,6 +34,10 @@ SERVER_IPADDRESS=$(echo $WIREGUARD_IPPATTERN | sed -r 's/\*/1/g')
 SERVER_DEVICE$(ip -o -4 route show to default | awk '{print $5}')
 SERVER_PRIVATEIP=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01" | jq --raw-output '.[0].ipv4.ipAddress[0].privateIpAddress')
 SERVER_PUBLICIP=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01" | jq --raw-output '.[0].ipv4.ipAddress[0].publicIpAddress')
+
+# ==========================================================================================================================================
+# FUNCTIONS
+# ==========================================================================================================================================
 
 registerClient() {
 
@@ -60,6 +74,10 @@ EOF
 
 }
 
+# ==========================================================================================================================================
+# MAIN
+# ==========================================================================================================================================
+
 echo "Creating config for server ..." && sudo tee /etc/wireguard/wg0.conf <<EOF
 
 [Interface]
@@ -69,7 +87,7 @@ ListenPort = 51820
 
 EOF
 
-registerClient 'TEST'
+# registerClient 'TEST'
 
 # sudo systemctl enable wg-quick@wg0
 # sudo systemctl start wg-quick@wg0
