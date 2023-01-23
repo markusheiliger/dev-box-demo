@@ -23,9 +23,9 @@ var GatewayIPSegments = split(first(split(snet.properties.addressPrefix, '/')),'
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(last(GatewayIPSegments))+4}'
 
 var DnsForwardersExt = map(union(['168.63.129.16'], filter(DnsForwarders, item => !empty(item))), item => string(item))
-var DnsClientsExt = map(union([vnet.properties.addressSpace], filter(DnsClients, item => !empty(item))), item => string(item))
+var DnsClientsExt = map(union(vnet.properties.addressSpace.addressPrefixes, filter(DnsClients, item => !empty(item))), item => string(item))
 var SetupDnsForwarderEnabled = (length(DnsForwardersExt) + length(DnsClientsExt)) > 0
-var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -f ${join(DnsForwardersExt, ' -f ')} -c ${join(DnsClientsExt, ' -c ')} > ./setupDnsForwarder.log')
+var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -f ${join(DnsForwardersExt, ' -f ')} -c ${join(DnsClientsExt, ' -c ')} > tee ./setupDnsForwarder.log')
 
 var GatewayInitScripts = [ 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupDnsForwarder.sh' 
@@ -34,7 +34,7 @@ var GatewayInitScripts = [
 ]
 
 var GatewayInitCommand = join(filter([
-  'sudo apt-get update && sudo apt-get upgrade -y'
+  '(sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y apt-utils coreutils)'
   SetupDnsForwarderEnabled ? SetupDnsForwarderCommand : ''
 ], item => !empty(item)), ' && ')
 

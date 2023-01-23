@@ -3,7 +3,7 @@
 FORWARDERS=()
 CLIENTS=()
 
-while getopts 'f:s:' OPT; do
+while getopts 'f:d:' OPT; do
     case "$OPT" in
 		f)
 			FORWARDERS+=("${OPTARG}") ;;
@@ -13,12 +13,15 @@ while getopts 'f:s:' OPT; do
 done
 
 # install required packages
-sudo apt-get install -y --no-install-recommends bind9
+sudo apt-get install -y bind9
+
+FORWARDERS_VALUE=$(printf "%s;\n" "${FORWARDERS[@]}")
+CLIENTS_VALUE=$(printf "%s;\n" "${CLIENTS[@]}")
 
 # update bind configuration
 sudo cat > /etc/bind/named.conf.options << EOF
 acl goodclients {
-    $2;
+    $CLIENTS_VALUE;
     localhost;
     localnets;
 };
@@ -27,7 +30,7 @@ options {
 	recursion yes;
 	allow-query { goodclients; };
 	forwarders {
-		$1;
+		$FORWARDERS_VALUE;
 	};
 	forward only;
 	dnssec-validation no; 	# needed for private dns zones
