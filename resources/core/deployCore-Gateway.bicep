@@ -35,7 +35,7 @@ var GatewayInitScripts = [
 ]
 
 var GatewayInitCommand = join(filter([
-  'initMachine.sh'
+  './initMachine.sh'
   SetupDnsForwarderEnabled ? SetupDnsForwarderCommand : ''
 ], item => !empty(item)), ' && ')
 
