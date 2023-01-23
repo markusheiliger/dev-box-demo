@@ -31,5 +31,10 @@ module deployCoreEnvironmentSubscription 'core/deployCore-EnvironmentSubscriptio
 
 // ============================================================================================
 
-output NetworkIds array = [for i in range(0, length(ProjectDefinition.environments)): deployCoreEnvironmentSubscription[i].outputs.NetworkId]
-output DefaultSubNetIds array = [for i in range(0, length(ProjectDefinition.environments)): deployCoreEnvironmentSubscription[i].outputs.DefaultSubNetId]
+output NetworkIds array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: deployCoreEnvironmentSubscription[EnvIndex].outputs.NetworkId]
+output DefaultSubNetIds array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: deployCoreEnvironmentSubscription[EnvIndex].outputs.DefaultSubNetId]
+
+output EnvironmentInfos array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: {
+  Environment: EnvDef
+  IpRanges: deployCoreEnvironmentSubscription[EnvIndex].outputs.IpRanges
+}]

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-FORWARDERS=()
+FORWARDS=()
 CLIENTS=()
 
 while getopts 'f:c:' OPT; do
     case "$OPT" in
 		f)
-			FORWARDERS+=("${OPTARG}") ;;
+			FORWARDS+=("${OPTARG}") ;;
 		c)
 			CLIENTS+=("${OPTARG}") ;;
     esac
@@ -31,7 +31,7 @@ options {
 	recursion yes;
 	allow-query { goodclients; };
 	forwarders {
-		%FORWARDERS%
+		%FORWARDS%
 	};
 	forward only;
 	dnssec-validation no; 	# needed for private dns zones
@@ -42,8 +42,8 @@ options {
 EOF
 
 sudo sed \
-	-e "s/%CLIENTS%/$(printf "%s; " "${FORWARDERS[@]}")/g" \
-	-e "s/%FORWARDERS%/$(printf "%s; " "${CLIENTS[@]}")/g" \
+	-e "s/%CLIENTS%/$(printf "%s; " "${CLIENTS[@]}")/g" \
+	-e "s/%FORWARDS%/$(printf "%s; " "${FORWARDS[@]}")/g" \
 	/etc/bind/named.conf.template > /etc/bind/named.conf.options
 
 # check bind configruation

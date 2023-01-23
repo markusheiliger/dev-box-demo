@@ -2,17 +2,19 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
+param SubNetId string
+
 @description('The organization defintion to process')
 param OrganizationDefinition object
 
 @description('The project defintion to process')
 param ProjectDefinition object
 
-param DnsForwarders array = []
-
+param DnsForwards array = []
 param DnsClients array = []
 
-param SubNetId string
+param NetForwards array = []
+param NetBlocks array = []
 
 // ============================================================================================
 
@@ -22,21 +24,26 @@ var ResourceName = '${last(split(VirtualNetworkId, '/'))}-GW'
 var GatewayIPSegments = split(first(split(snet.properties.addressPrefix, '/')),'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(last(GatewayIPSegments))+4}'
 
-var DnsForwardersExt = map(union(['168.63.129.16'], filter(DnsForwarders, item => !empty(item))), item => string(item))
+var DnsForwardsExt = map(union(['168.63.129.16'], filter(DnsForwards, item => !empty(item))), item => string(item))
 var DnsClientsExt = map(union(vnet.properties.addressSpace.addressPrefixes, filter(DnsClients, item => !empty(item))), item => string(item))
-var SetupDnsForwarderEnabled = (length(DnsForwardersExt) + length(DnsClientsExt)) > 0
-var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -f ${join(DnsForwardersExt, ' -f ')} -c ${join(DnsClientsExt, ' -c ')} | tee ./setupDnsForwarder.log')
+
+var SetupDnsForwarderEnabled = (length(DnsForwardsExt) + length(DnsClientsExt)) > 0
+var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh ${length(DnsForwardsExt) > 0 ? '-f' : ''} ${join(DnsForwardsExt, ' -f ')} ${length(DnsClientsExt) > 0 ? '-c' : ''} ${join(DnsClientsExt, ' -c ')} | tee ./setupDnsForwarder.log')
+
+var SetupNetForwarderEnabled = (length(DnsForwards) + length(NetBlocks)) > 0
+var SetupNetForwarderCommand = trim('./setupNetForwarder.sh ${length(NetForwards) > 0 ? '-f' : ''} ${join(NetForwards, ' -f ')} ${length(NetBlocks) > 0 ? '-b' : ''} ${join(NetBlocks, ' -b ')} | tee ./setupNetForwarder.log')
 
 var GatewayInitScripts = [ 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/initMachine.sh' 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupDnsForwarder.sh' 
-  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupNatRouter.sh' 
+  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupNetForwarder.sh' 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupWireGuard.sh' 
 ]
 
 var GatewayInitCommand = join(filter([
   './initMachine.sh'
   SetupDnsForwarderEnabled ? SetupDnsForwarderCommand : ''
+  SetupNetForwarderEnabled ? SetupNetForwarderCommand : ''
 ], item => !empty(item)), ' && ')
 
 // ============================================================================================

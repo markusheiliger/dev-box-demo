@@ -55,3 +55,4 @@ module deployEnvironmentTestHost '../utils/deployTestHost.bicep' = if (Features.
 
 output NetworkId string = deployCoreEnvironmentResources.outputs.NetworkId
 output DefaultSubNetId string = deployCoreEnvironmentResources.outputs.DefaultSubNetId
+output IpRanges array = deployCoreEnvironmentResources.outputs.IpRanges

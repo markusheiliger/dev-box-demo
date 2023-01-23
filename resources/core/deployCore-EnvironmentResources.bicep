@@ -67,3 +67,4 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
 output NetworkId string = virtualNetwork.id
 output DefaultSubNetId string = defaultSubNet.id
 output DnsZoneId string = dnsZone.id
+output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes
