@@ -8,7 +8,7 @@ export DEBIAN_FRONTEND=noninteractive
 	&& sed -i 's/#$nrconf{restart}.*/$nrconf{restart} = '"'"'l'"'"';/g' /etc/needrestart/needrestart.conf
 
 # update and upgrade packages
-sudo apt-get update && sudo apt-get upgrade -y 
+sudo apt-get update -y && sudo apt-get upgrade -y 
 
 # install commonly used packages
-sudo apt-get install -y apt-utils coreutils
+sudo apt-get install -y apt-utils apt-transport-https coreutils
