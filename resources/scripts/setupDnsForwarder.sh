@@ -3,7 +3,7 @@
 FORWARDERS=()
 CLIENTS=()
 
-while getopts 'f:d:' OPT; do
+while getopts 'f:c:' OPT; do
     case "$OPT" in
 		f)
 			FORWARDERS+=("${OPTARG}") ;;
