@@ -28,13 +28,14 @@ var SetupDnsForwarderEnabled = (length(DnsForwardersExt) + length(DnsClientsExt)
 var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -f ${join(DnsForwardersExt, ' -f ')} -c ${join(DnsClientsExt, ' -c ')} | tee ./setupDnsForwarder.log')
 
 var GatewayInitScripts = [ 
+  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/initMachine.sh' 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupDnsForwarder.sh' 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupNatRouter.sh' 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupWireGuard.sh' 
 ]
 
 var GatewayInitCommand = join(filter([
-  '(sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y apt-utils coreutils)'
+  'initMachine.sh'
   SetupDnsForwarderEnabled ? SetupDnsForwarderCommand : ''
 ], item => !empty(item)), ' && ')
 
