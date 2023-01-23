@@ -8,13 +8,9 @@ param OrganizationDefinition object
 @description('The project defintion to process')
 param ProjectDefinition object
 
-param DnsForward array = []
+param DnsForwarders array = []
 
-param RouteForward array = []
-
-param RouteBlock array = []
-
-param WireGuard bool = false
+param DnsClients array = []
 
 param SubNetId string
 
@@ -25,6 +21,22 @@ var ResourceName = '${last(split(VirtualNetworkId, '/'))}-GW'
 
 var GatewayIPSegments = split(first(split(snet.properties.addressPrefix, '/')),'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(last(GatewayIPSegments))+4}'
+
+var DnsForwardersExt = map(union(['168.63.129.16'], filter(DnsForwarders, item => !empty(item))), item => string(item))
+var DnsClientsExt = map(union([vnet.properties.addressSpace], filter(DnsClients, item => !empty(item))), item => string(item))
+var SetupDnsForwarderEnabled = (length(DnsForwardersExt) + length(DnsClientsExt)) > 0
+var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -f ${join(DnsForwardersExt, ' -f ')} -c ${join(DnsClientsExt, ' -c ')} > ./setupDnsForwarder.log')
+
+var GatewayInitScripts = [ 
+  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupDnsForwarder.sh' 
+  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupNatRouter.sh' 
+  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/setupWireGuard.sh' 
+]
+
+var GatewayInitCommand = join(filter([
+  'sudo apt-get update && sudo apt-get upgrade -y'
+  SetupDnsForwarderEnabled ? SetupDnsForwarderCommand : ''
+], item => !empty(item)), ' && ')
 
 // ============================================================================================
 
@@ -154,18 +166,18 @@ resource gateway 'Microsoft.Compute/virtualMachines@2021-11-01' = {
   }
 }
 
-// resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
-//   name: 'Init'
-//   location: OrganizationDefinition.location
-//   parent: gateway
-//   properties: {
-//     publisher: 'Microsoft.Azure.Extensions'
-//     type: 'CustomScript'
-//     typeHandlerVersion: '2.1'
-//     autoUpgradeMinorVersion: true
-//     settings: {      
-//       fileUris: [ ScriptUri ]
-//       commandToExecute: trim('./${last(split(first(split(ScriptUri, '?')), '/'))} ${join(ScriptParams, ' ')}')
-//     }
-//   }
-// }
+resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
+  name: 'Init'
+  location: OrganizationDefinition.location
+  parent: gateway
+  properties: {
+    publisher: 'Microsoft.Azure.Extensions'
+    type: 'CustomScript'
+    typeHandlerVersion: '2.1'
+    autoUpgradeMinorVersion: true
+    settings: {      
+      fileUris: GatewayInitScripts
+      commandToExecute: GatewayInitCommand
+    }
+  }
+}

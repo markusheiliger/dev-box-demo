@@ -12,9 +12,6 @@ while getopts 'f:s:' OPT; do
     esac
 done
 
-# update and upgrade packages
-sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils && sudo apt-get upgrade -y
-
 # install required packages
 sudo apt-get install -y --no-install-recommends bind9
 
