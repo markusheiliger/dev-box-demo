@@ -138,6 +138,7 @@ module deployProjectGateway 'core/deployCore-Gateway.bicep' = {
     OrganizationDefinition: OrganizationDefinition
     ProjectDefinition: ProjectDefinition
     SubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
+    DnsForwarders: [ deployOrganizationGateway.outputs.GatewayIp ]
   }
 }
 

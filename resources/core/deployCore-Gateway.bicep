@@ -181,3 +181,7 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
     }
   }
 }
+
+// ============================================================================================
+
+output GatewayIp string = first(nic.properties.ipConfigurations).properties.privateIPAddress

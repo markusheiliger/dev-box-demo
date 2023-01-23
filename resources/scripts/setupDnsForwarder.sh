@@ -15,16 +15,13 @@ done
 # install required packages
 sudo apt-get install -y bind9
 
-FORWARDERS_VALUE=$(printf "%s;\n" "${FORWARDERS[@]}")
-CLIENTS_VALUE=$(printf "%s;\n" "${CLIENTS[@]}")
-
 # ensure bind cache folder exists
 sudo mkdir -p /var/cache/bind
 
 # update bind configuration
-sudo tee /etc/bind/named.conf.options <<EOF
+sudo tee /etc/bind/named.conf.template <<EOF
 acl goodclients {
-    $CLIENTS_VALUE
+    [CLIENTS]
     localhost;
     localnets;
 };
@@ -33,7 +30,7 @@ options {
 	recursion yes;
 	allow-query { goodclients; };
 	forwarders {
-		$FORWARDERS_VALUE
+		[FORWARDERS]
 	};
 	forward only;
 	dnssec-validation no; 	# needed for private dns zones
@@ -41,6 +38,10 @@ options {
 	listen-on { any; };
 };
 EOF
+
+sudo sed \
+	"s/\[CLIENTS\]/$(printf "%s;\n" "${FORWARDERS[@]}")/ ; s/\[FORWARDERS\]/$(printf "%s;\n" "${CLIENTS[@]}")/" \
+	/etc/bind/named.conf.template > /etc/bind/named.conf.options
 
 # restart bind with new config
 sudo service bind9 restart
