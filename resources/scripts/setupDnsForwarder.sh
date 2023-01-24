@@ -1,6 +1,8 @@
 #!/bin/bash
 
 FORWARDS=()
+FORWARDS_FULL=()
+FORWARDS_ZONE=()
 CLIENTS=()
 
 while getopts 'n:f:c:' OPT; do
@@ -27,8 +29,24 @@ function errorHandler {
 
 trap "errorHandler $LINENO" ERR
 
-for PEERCLIENT in $(az network vnet peering list --vnet-name $(basename $NETWORKID) --query '[?(allowVirtualNetworkAccess)].remoteAddressSpace.addressPrefixes[]' -o tsv); do
-	[ ! -z "$PEERCLIENT" ] && CLIENTS+=("$PEERCLIENT")
+for VNETCLIENT in $(az network vnet show --ids $NETWORKID --query 'addressSpace.addressPrefixes[]' -o tsv); do
+	[ ! -z "$VNETCLIENT" ] && CLIENTS+=("$VNETCLIENT") && echo "Resolved VNet address prefix: $VNETCLIENT"
+done
+
+for PEERCLIENT in $(az network vnet peering list --vnet-name $(basename $NETWORKID) --query '[].remoteVirtualNetworkAddressSpace.addressPrefixes[]' -o tsv); do
+	[ ! -z "$PEERCLIENT" ] && CLIENTS+=("$PEERCLIENT") && echo "Resolved PEER address prefix: $VNETCLIENT"
+done
+
+for FORWARD in "${FORWARDS[@]}"; do
+	if [ -z "$(echo $FORWARD | grep '>')" ]; then
+		echo "Identified general forwarder: $FORWARD"
+		FORWARDS_FULL+=("$FORWARD") 
+	else
+		ZONE_NAME=$(echo "$FORWARD" | grep -o '.*>' | cut -d '>' -f1)
+		ZONE_FORW=$(echo "$FORWARD" | grep -o '>.*' | cut -d '>' -f2)
+		echo "Identified conditional forwarder: $ZONE_FORW ($ZONE_NAME)"
+		FORWARDS_ZONE+=("zone "$ZONE_NAME" {	type forward; forward only;	forwarders { $ZONE_FORW; }; };")
+	fi 
 done
 
 # install required packages
@@ -38,7 +56,8 @@ sudo apt-get install -y bind9
 sudo mkdir -p /var/cache/bind
 
 CLIENTS_VALUE="$(if [ ${#CLIENTS[@]} -eq 0 ]; then echo ''; else printf "%s; " "${CLIENTS[@]}"; fi)"
-FORWARDS_VALUE="$(if [ ${#FORWARDS[@]} -eq 0 ]; then echo ''; else printf "%s; " "${FORWARDS[@]}"; fi)"
+FORWARDS_FULL_VALUE="$(if [ ${#FORWARDS_FULL[@]} -eq 0 ]; then echo ''; else printf "%s; " "${FORWARDS_FULL[@]}"; fi)"
+FORWARDS_ZONE_VALUE="$(if [ ${#FORWARDS_ZONE[@]} -eq 0 ]; then echo ''; else printf "%s" "${FORWARDS_ZONE[@]}"; fi)"
 
 # update bind configuration
 echo "Updating BIND9 configuration ..." && sudo tee /etc/bind/named.conf.options <<EOF
@@ -49,12 +68,14 @@ acl goodclients {
     localnets;
 };
 
+$FORWARDS_ZONE_VALUE
+
 options {
 	directory "/var/cache/bind";
 	recursion yes;
 	allow-query { goodclients; };
 	forwarders {
-		$FORWARDS_VALUE
+		$FORWARDS_FULL_VALUE
 		168.63.129.16;
 	};
 	forward only;

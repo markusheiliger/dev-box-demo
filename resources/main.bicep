@@ -138,7 +138,7 @@ module deployProjectGateway 'core/deployCore-Gateway.bicep' = {
     OrganizationDefinition: OrganizationDefinition
     ProjectDefinition: ProjectDefinition
     SubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
-    DnsForwards: [ deployOrganizationGateway.outputs.GatewayIp ]
+    DnsForwards: [ '${deployCoreOrganizationResources.outputs.DnsZoneName}>${deployOrganizationGateway.outputs.GatewayIp}' ]
     NetBlocks: deployCoreOrganizationResources.outputs.IpRanges
     NetForwards: flatten(map(environments.outputs.EnvironmentInfos, item => item.IpRanges))
   }
