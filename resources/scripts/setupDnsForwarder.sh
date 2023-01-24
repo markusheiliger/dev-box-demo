@@ -14,7 +14,7 @@ while getopts 'n:f:c:' OPT; do
     esac
 done
 
-for PEERCLIENT in $(az network vnet peering list --vnet-name $(basename NETWORKID) --query '[?(allowVirtualNetworkAccess)].remoteAddressSpace.addressPrefixes[]' -o tsv); do
+for PEERCLIENT in $(az network vnet peering list --vnet-name $(basename $NETWORKID) --query '[?(allowVirtualNetworkAccess)].remoteAddressSpace.addressPrefixes[]' -o tsv); do
 	[ ! -z "$PEERCLIENT" ] && CLIENTS+=("$PEERCLIENT")
 done
 
