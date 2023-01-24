@@ -11,4 +11,15 @@ export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -y && sudo apt-get upgrade -y 
 
 # install commonly used packages
-sudo apt-get install -y apt-utils apt-transport-https coreutils
+sudo apt-get install -y apt-utils apt-transport-https coreutils jq
+
+# install Azure CLI
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# configure Azure CLI
+az config set \
+	defaults.location=westus2 \
+	defaults.group=MyResourceGroup
+
+# login and set subscription context
+az login --identity --allow-no-subscriptions

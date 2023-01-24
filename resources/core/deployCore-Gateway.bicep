@@ -136,6 +136,9 @@ resource availabilitySet 'Microsoft.Compute/availabilitySets@2022-08-01' = {
 resource gateway 'Microsoft.Compute/virtualMachines@2021-11-01' = {
   name: ResourceName
   location: OrganizationDefinition.location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     hardwareProfile: {
       vmSize: 'Standard_B2s'
@@ -174,10 +177,26 @@ resource gateway 'Microsoft.Compute/virtualMachines@2021-11-01' = {
   }
 }
 
+resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+}
+
+resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  name: guid(vnet.id, gateway.id, contributorRoleDefinition.id)
+  properties: {
+    roleDefinitionId: contributorRoleDefinition.id
+    principalId: gateway.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
   name: 'Init'
   location: OrganizationDefinition.location
   parent: gateway
+  dependsOn: [
+    contributorRoleAssignment
+  ]
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'
