@@ -45,7 +45,7 @@ for FORWARD in "${FORWARDS[@]}"; do
 		ZONE_NAME=$(echo "$FORWARD" | grep -o '.*>' | cut -d '>' -f1)
 		ZONE_FORW=$(echo "$FORWARD" | grep -o '>.*' | cut -d '>' -f2)
 		echo "Identified conditional forwarder: $ZONE_FORW ($ZONE_NAME)"
-		FORWARDS_ZONE+=("zone "$ZONE_NAME" {	type forward; forward only;	forwarders { $ZONE_FORW; }; };")
+		FORWARDS_ZONE+=("zone \"$ZONE_NAME\" { type forward; forward only; forwarders { $ZONE_FORW; }; };")
 	fi 
 done
 

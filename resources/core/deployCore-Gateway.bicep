@@ -24,11 +24,13 @@ var ResourceName = '${last(split(VirtualNetworkId, '/'))}-GW'
 var GatewayIPSegments = split(first(split(snet.properties.addressPrefix, '/')),'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(last(GatewayIPSegments))+4}'
 
+var SetupDnsForwarderArguments = union(map(DnsForwards, item => '-f "${string(item)}"'), map(DnsClients, item => '-c "${string(item)}"'))
 var SetupDnsForwarderEnabled = length(DnsForwards) > 0
-var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -n ${VirtualNetworkId} ${length(DnsForwards) > 0 ? '-f' : ''} ${join(DnsForwards, ' -f ')} ${length(DnsClients) > 0 ? '-c' : ''} ${join(DnsClients, ' -c ')} | tee ./setupDnsForwarder.log')
+var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -n "${VirtualNetworkId}" ${join(SetupDnsForwarderArguments, ' ')} | tee ./setupDnsForwarder.log')
 
+var SetupNetForwarderArguments = union(map(NetForwards, item => '-f "${string(item)}"'), map(NetBlocks, item => '-b "${string(item)}"'))
 var SetupNetForwarderEnabled = (length(NetForwards) + length(NetBlocks)) > 0
-var SetupNetForwarderCommand = trim('./setupNetForwarder.sh -n ${VirtualNetworkId} ${length(NetForwards) > 0 ? '-f' : ''} ${join(NetForwards, ' -f ')} ${length(NetBlocks) > 0 ? '-b' : ''} ${join(NetBlocks, ' -b ')} | tee ./setupNetForwarder.log')
+var SetupNetForwarderCommand = trim('./setupNetForwarder.sh -n "${VirtualNetworkId}" ${join(SetupNetForwarderArguments, ' ')} | tee ./setupNetForwarder.log')
 
 var GatewayInitScripts = [ 
   'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/scripts/initMachine.sh' 
