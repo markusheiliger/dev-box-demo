@@ -3,8 +3,10 @@
 FORWARDS=()
 CLIENTS=()
 
-while getopts 'f:c:' OPT; do
+while getopts 'n:f:c:' OPT; do
     case "$OPT" in
+		n)
+			NETWORKID="${OPTARG}" ;;
 		f)
 			FORWARDS+=("${OPTARG}") ;;
 		c)
@@ -51,3 +53,9 @@ sudo named-checkconf /etc/bind/named.conf.options
 
 # restart bind with new configuration
 sudo service bind9 restart
+
+# patch DNS on network 
+az network vnet update \
+	--ids NETWORKID \
+	--dns-servers 168.63.129.16 $(jq -r '[.network.interface[].ipv4.ipAddress[].privateIpAddress]|join(" ")' ./metadata.json)
+	

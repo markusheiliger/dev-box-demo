@@ -16,10 +16,13 @@ sudo apt-get install -y apt-utils apt-transport-https coreutils jq
 # install Azure CLI
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-# configure Azure CLI
+# dump VM metadata
+curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2021-02-01" | jq > ./metadata.json
+
+# configure Azure CLI defaults
 az config set \
-	defaults.location=westus2 \
-	defaults.group=MyResourceGroup
+	defaults.location=$(jq -r .compute.location ./metadata.json) \
+	defaults.group=$(jq -r .compute.resourceGroupName ./metadata.json)
 
 # login and set subscription context
 az login --identity --allow-no-subscriptions

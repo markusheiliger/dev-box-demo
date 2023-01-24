@@ -18,13 +18,14 @@ param NetBlocks array = []
 
 // ============================================================================================
 
+var DefaultAzureDns = '168.63.129.16'
 var VirtualNetworkId = join(take(split(SubNetId, '/'), 9),'/')
 var ResourceName = '${last(split(VirtualNetworkId, '/'))}-GW'
 
 var GatewayIPSegments = split(first(split(snet.properties.addressPrefix, '/')),'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(last(GatewayIPSegments))+4}'
 
-var DnsForwardsExt = map(union(['168.63.129.16'], filter(DnsForwards, item => !empty(item))), item => string(item))
+var DnsForwardsExt = map(union([DefaultAzureDns], filter(DnsForwards, item => !empty(item))), item => string(item))
 var DnsClientsExt = map(union(vnet.properties.addressSpace.addressPrefixes, filter(DnsClients, item => !empty(item))), item => string(item))
 
 var SetupDnsForwarderEnabled = (length(DnsForwardsExt) + length(DnsClientsExt)) > 0
