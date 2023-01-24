@@ -14,6 +14,19 @@ while getopts 'n:f:c:' OPT; do
     esac
 done
 
+function errorHandler {
+
+	# fallback to default DNS
+	az network vnet update \
+		--ids $NETWORKID \
+		--dns-servers null \
+		--output none
+
+	echo "Error in line $1" | tee /dev/stderr && exit 1
+}
+
+trap "errorHandler $LINENO" ERR
+
 for PEERCLIENT in $(az network vnet peering list --vnet-name $(basename $NETWORKID) --query '[?(allowVirtualNetworkAccess)].remoteAddressSpace.addressPrefixes[]' -o tsv); do
 	[ ! -z "$PEERCLIENT" ] && CLIENTS+=("$PEERCLIENT")
 done
@@ -28,7 +41,7 @@ CLIENTS_VALUE="$(if [ ${#CLIENTS[@]} -eq 0 ]; then printf "%s; " "${CLIENTS[@]}"
 FORWARDS_VALUE="$(if [ ${#FORWARDS[@]} -eq 0 ]; then printf "%s; " "${FORWARDS[@]}"; else echo ''; fi)"
 
 # update bind configuration
-sudo tee /etc/bind/named.conf.options <<EOF
+echo "Updating BIND9 configuration ..." && sudo tee /etc/bind/named.conf.options <<EOF
 
 acl goodclients {
     $CLIENTS_VALUE
@@ -61,4 +74,5 @@ sudo service bind9 restart
 # patch DNS on network 
 az network vnet update \
 	--ids $NETWORKID \
-	--dns-servers 168.63.129.16 $(jq -r '[.network.interface[].ipv4.ipAddress[].privateIpAddress]|join(" ")' ./metadata.json)
+	--dns-servers 168.63.129.16 $(jq -r '[.network.interface[].ipv4.ipAddress[].privateIpAddress]|join(" ")' ./metadata.json) \
+	--output none
