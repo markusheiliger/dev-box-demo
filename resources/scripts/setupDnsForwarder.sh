@@ -24,14 +24,14 @@ sudo apt-get install -y bind9
 # ensure bind cache folder exists
 sudo mkdir -p /var/cache/bind
 
-CLIENTS_VAL="$(printf "%s; " "${CLIENTS[@]}")"
-FORWARDS_VAL="$(printf "%s; " "${FORWARDS[@]}")"
+CLIENTS_VALUE="$(if [ ${#CLIENTS[@]} -eq 0 ]; then printf "%s; " "${CLIENTS[@]}"; else echo ''; fi)"
+FORWARDS_VALUE="$(if [ ${#FORWARDS[@]} -eq 0 ]; then printf "%s; " "${FORWARDS[@]}"; else echo ''; fi)"
 
 # update bind configuration
 sudo tee /etc/bind/named.conf.options <<EOF
 
 acl goodclients {
-    $CLIENTS_VAL
+    $CLIENTS_VALUE
     localhost;
     localnets;
 };
@@ -41,7 +41,7 @@ options {
 	recursion yes;
 	allow-query { goodclients; };
 	forwarders {
-		$FORWARDS_VAL
+		$FORWARDS_VALUE
 		168.63.129.16;
 	};
 	forward only;
