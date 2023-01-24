@@ -37,8 +37,8 @@ sudo apt-get install -y bind9
 # ensure bind cache folder exists
 sudo mkdir -p /var/cache/bind
 
-CLIENTS_VALUE="$(if [ ${#CLIENTS[@]} -eq 0 ]; then printf "%s; " "${CLIENTS[@]}"; else echo ''; fi)"
-FORWARDS_VALUE="$(if [ ${#FORWARDS[@]} -eq 0 ]; then printf "%s; " "${FORWARDS[@]}"; else echo ''; fi)"
+CLIENTS_VALUE="$(if [ ${#CLIENTS[@]} -eq 0 ]; then echo ''; else printf "%s; " "${CLIENTS[@]}"; fi)"
+FORWARDS_VALUE="$(if [ ${#FORWARDS[@]} -eq 0 ]; then echo ''; else printf "%s; " "${FORWARDS[@]}"; fi)"
 
 # update bind configuration
 echo "Updating BIND9 configuration ..." && sudo tee /etc/bind/named.conf.options <<EOF
