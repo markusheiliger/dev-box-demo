@@ -56,6 +56,5 @@ sudo service bind9 restart
 
 # patch DNS on network 
 az network vnet update \
-	--ids NETWORKID \
+	--ids $NETWORKID \
 	--dns-servers 168.63.129.16 $(jq -r '[.network.interface[].ipv4.ipAddress[].privateIpAddress]|join(" ")' ./metadata.json)
-	

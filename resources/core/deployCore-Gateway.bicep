@@ -29,7 +29,7 @@ var DnsForwardsExt = map(union([DefaultAzureDns], filter(DnsForwards, item => !e
 var DnsClientsExt = map(union(vnet.properties.addressSpace.addressPrefixes, filter(DnsClients, item => !empty(item))), item => string(item))
 
 var SetupDnsForwarderEnabled = (length(DnsForwardsExt) + length(DnsClientsExt)) > 0
-var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh ${length(DnsForwardsExt) > 0 ? '-f' : ''} ${join(DnsForwardsExt, ' -f ')} ${length(DnsClientsExt) > 0 ? '-c' : ''} ${join(DnsClientsExt, ' -c ')} | tee ./setupDnsForwarder.log')
+var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -n ${VirtualNetworkId} ${length(DnsForwardsExt) > 0 ? '-f' : ''} ${join(DnsForwardsExt, ' -f ')} ${length(DnsClientsExt) > 0 ? '-c' : ''} ${join(DnsClientsExt, ' -c ')} | tee ./setupDnsForwarder.log')
 
 var SetupNetForwarderEnabled = (length(DnsForwards) + length(NetBlocks)) > 0
 var SetupNetForwarderCommand = trim('./setupNetForwarder.sh ${length(NetForwards) > 0 ? '-f' : ''} ${join(NetForwards, ' -f ')} ${length(NetBlocks) > 0 ? '-b' : ''} ${join(NetBlocks, ' -b ')} | tee ./setupNetForwarder.log')
