@@ -10,23 +10,27 @@ param ProjectDefinition object
 
 // ============================================================================================
 
+var DefaultSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'default'))
+
+// ============================================================================================
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
-  name: ProjectDefinition.name
+  name: OrganizationDefinition.name
   location: OrganizationDefinition.location
   properties: {
     addressSpace: {
       addressPrefixes: [
-        ProjectDefinition.ipRange
+        OrganizationDefinition.network.ipRange  
       ]
-    }
+    } 
   }
 }
 
 resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = {
-  name: 'default'
+  name: DefaultSubnetDefinition.name
   parent: virtualNetwork
   properties: {
-    addressPrefix: ProjectDefinition.ipRange
+    addressPrefix: DefaultSubnetDefinition.ipRange
     routeTable: {
         id: routes.id
     }
@@ -34,12 +38,12 @@ resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = 
 }
 
 resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
-  name: ProjectDefinition.name
+  name: OrganizationDefinition.name
   location: OrganizationDefinition.location
 }
 
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: toLower('${ProjectDefinition.name}.${OrganizationDefinition.zone}')
+  name: toLower(OrganizationDefinition.zone)
   location: 'global'
 }
 
@@ -57,7 +61,10 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
 
 // ============================================================================================
 
-output NetworkId string = virtualNetwork.id
-output DefaultSubNetId string = defaultSubNet.id
+output VNetId string = virtualNetwork.id
+output VNetName string = virtualNetwork.name
+output DefaultSNetId string = defaultSubNet.id
+output DefaultSNetName string = defaultSubNet.name
 output DnsZoneId string = dnsZone.id
+output DnsZoneName string = dnsZone.name
 output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes

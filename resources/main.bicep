@@ -18,15 +18,15 @@ var Features = {
 } 
 
 var OrganizationInfo = {
-  NetworkId: deployCoreOrganizationResources.outputs.NetworkId
-  DefaultSubNetId: deployCoreOrganizationResources.outputs.DefaultSubNetId
-  DnsZoneId: deployCoreOrganizationResources.outputs.DnsZoneId
+  NetworkId: deployOrganizationResources.outputs.VNetId
+  DefaultSubNetId: deployOrganizationResources.outputs.DefaultSNetId
+  DnsZoneId: deployOrganizationResources.outputs.DnsZoneId
 }
 
 var ProjectInfo = {
-  NetworkId: deployCoreProjectResources.outputs.NetworkId
-  DefaultSubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
-  DnsZoneId: deployCoreProjectResources.outputs.DnsZoneId
+  NetworkId: deployProjectResources.outputs.VNetId
+  DefaultSubNetId: deployProjectResources.outputs.DefaultSNetId
+  DnsZoneId: deployProjectResources.outputs.DnsZoneId
 }
 
 // ============================================================================================
@@ -36,8 +36,8 @@ resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-0
   location: OrganizationDefinition.location
 }
 
-module deployCoreOrganizationResources 'core/deployCore-OrganizationResources.bicep' ={
-  name: '${take(deployment().name, 36)}_${uniqueString('deployCoreOrganizationResources')}'
+module deployOrganizationResources 'core/resources/deployOrganizationResources.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationResources')}'
   scope: organizationResourceGroup
   params: {
     OrganizationDefinition: OrganizationDefinition
@@ -50,8 +50,8 @@ resource projectResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = 
   location: OrganizationDefinition.location
 }
 
-module deployCoreProjectResources 'core/deployCore-ProjectResources.bicep' ={
-  name: '${take(deployment().name, 36)}_${uniqueString('deployCoreProjectResources')}'
+module deployProjectResources 'core/resources/deployProjectResources.bicep' ={
+  name: '${take(deployment().name, 36)}_${uniqueString('deployProjectResources')}'
   scope: projectResourceGroup
   params: {
     OrganizationDefinition: OrganizationDefinition
@@ -75,11 +75,11 @@ resource privateLinkZonesResourceGroup 'Microsoft.Resources/resourceGroups@2022-
   location: OrganizationDefinition.location
 }
 
-module deployCorePrivateLinkZones 'core/deployCore-PrivateLinkZones.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployCorePrivateLinkZones')}'
+module deployPrivateLinkZones 'core/resources/deployPrivateLinkZones.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployPrivateLinkZones')}'
   scope: privateLinkZonesResourceGroup
   params: {
-    NetworkId: deployCoreOrganizationResources.outputs.NetworkId
+    NetworkId: deployOrganizationResources.outputs.VNetId
     PrivateDnsZones: [
       'privatelink.blob.${az.environment().suffixes.storage}'
     ]
@@ -89,20 +89,20 @@ module deployCorePrivateLinkZones 'core/deployCore-PrivateLinkZones.bicep' = {
 module peerOrganizationToProject 'utils/peerNetworks.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('peerOrganizationToProject')}'
   params: {
-    HubNetworkId: deployCoreOrganizationResources.outputs.NetworkId
-    SpokeNetworkIds: [ deployCoreProjectResources.outputs.NetworkId ]
+    HubNetworkId: deployOrganizationResources.outputs.VNetId
+    SpokeNetworkIds: [ deployProjectResources.outputs.VNetId ]
   }
 }
 
 module peerProjectToEnvironments 'utils/peerNetworks.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('peerProjectToEnvironments')}'
   params: {
-    HubNetworkId: deployCoreProjectResources.outputs.NetworkId
-    SpokeNetworkIds: environments.outputs.NetworkIds
+    HubNetworkId: deployProjectResources.outputs.VNetId
+    SpokeNetworkIds: environments.outputs.VNetIds
   }
 }
 
-module deployOrganizationGateway 'core/deployCore-Gateway.bicep' = {
+module deployOrganizationGateway 'core/gateway/deployGateway.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('deployOrganizationGateway')}'
   scope: organizationResourceGroup
   dependsOn: [
@@ -110,9 +110,10 @@ module deployOrganizationGateway 'core/deployCore-Gateway.bicep' = {
     peerProjectToEnvironments
   ]
   params: {
+    VNetName: deployOrganizationResources.outputs.VNetName
+    SNetName: deployOrganizationResources.outputs.DefaultSNetName
     OrganizationDefinition: OrganizationDefinition
     ProjectDefinition: ProjectDefinition
-    SubNetId: deployCoreOrganizationResources.outputs.DefaultSubNetId
   }
 }
 
@@ -123,11 +124,11 @@ module deployOrganizationTestHost 'utils/deployTestHost.bicep' = if (Features.Te
     deployOrganizationGateway
   ]
   params: {
-    SubNetId: deployCoreOrganizationResources.outputs.DefaultSubNetId
+    SubNetId: deployOrganizationResources.outputs.DefaultSNetId
   }
 }
 
-module deployProjectGateway 'core/deployCore-Gateway.bicep' = {
+module deployProjectGateway 'core/gateway/deployGateway.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString('deployProjectGateway')}'
   scope: projectResourceGroup
   dependsOn: [
@@ -137,9 +138,10 @@ module deployProjectGateway 'core/deployCore-Gateway.bicep' = {
   params: {
     OrganizationDefinition: OrganizationDefinition
     ProjectDefinition: ProjectDefinition
-    SubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
-    DnsForwards: [ '${deployCoreOrganizationResources.outputs.DnsZoneName}>${deployOrganizationGateway.outputs.GatewayIp}' ]
-    NetBlocks: deployCoreOrganizationResources.outputs.IpRanges
+    VNetName: deployProjectResources.outputs.VNetName
+    SNetName: deployProjectResources.outputs.DefaultSNetName
+    DnsForwards: [ '${deployOrganizationResources.outputs.DnsZoneName}>${deployOrganizationGateway.outputs.GatewayIp}' ]
+    NetBlocks: deployOrganizationResources.outputs.IpRanges
     NetForwards: flatten(map(environments.outputs.EnvironmentInfos, item => item.IpRanges))
   }
 }
@@ -151,7 +153,7 @@ module deployProjectTestHost 'utils/deployTestHost.bicep' = if (Features.TestHos
     deployProjectGateway
   ]
   params: {
-    SubNetId: deployCoreProjectResources.outputs.DefaultSubNetId
+    SubNetId: deployProjectResources.outputs.DefaultSNetId
   }
 }
 

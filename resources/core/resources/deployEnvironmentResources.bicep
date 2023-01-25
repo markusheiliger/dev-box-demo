@@ -5,8 +5,12 @@ targetScope = 'resourceGroup'
 @description('The organization defintion to process')
 param OrganizationDefinition object
 
+param OrganizationInfo object
+
 @description('The project defintion to process')
 param ProjectDefinition object
+
+param ProjectInfo object
 
 @description('The environment defintion to process')
 param EnvironmentDefinition object
@@ -64,7 +68,9 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
 
 // ============================================================================================
 
-output NetworkId string = virtualNetwork.id
-output DefaultSubNetId string = defaultSubNet.id
+output VNetId string = virtualNetwork.id
+output VNetName string = virtualNetwork.name
+output DefaultSNetId string = defaultSubNet.id
+output DefaultSNetName string = defaultSubNet.name
 output DnsZoneId string = dnsZone.id
 output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes

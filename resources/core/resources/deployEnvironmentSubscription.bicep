@@ -24,35 +24,30 @@ resource environmentResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01
   location: OrganizationDefinition.location
 }
 
-module deployCoreEnvironmentResources 'deployCore-EnvironmentResources.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployCoreEnvironmentResources', EnvironmentDefinition.name)}'
+module deployEnvironmentResources 'deployEnvironmentResources.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployEnvironmentResources', EnvironmentDefinition.name)}'
   scope: environmentResourceGroup
   params: {
     EnvironmentDefinition: EnvironmentDefinition
     OrganizationDefinition: OrganizationDefinition
+    OrganizationInfo: OrganizationInfo
     ProjectDefinition: ProjectDefinition
+    ProjectInfo: ProjectInfo
   }
 }
 
-// module linkEnvironmentZoneToProject '../utils/linkDnsZone.bicep' = {
-//   name: '${take(deployment().name, 36)}_${uniqueString('linkEnvironmentZoneToProject')}'
-//   scope: environmentResourceGroup
-//   params: {
-//     PrivateDnsZone: last(split(deployCoreEnvironmentResources.outputs.DnsZoneId, '/'))
-//     LinkNetworkIds: [ ProjectInfo.networkId ]
-//   }
-// }
-
-module deployEnvironmentTestHost '../utils/deployTestHost.bicep' = if (Features.TestHost) {
+module deployEnvironmentTestHost '../../utils/deployTestHost.bicep' = if (Features.TestHost) {
   name: '${take(deployment().name, 36)}_${uniqueString('deployEnvironmentTestHost', EnvironmentDefinition.name)}'
   scope: environmentResourceGroup
   params: {
-    SubNetId: deployCoreEnvironmentResources.outputs.DefaultSubNetId
+    SubNetId: deployEnvironmentResources.outputs.DefaultSNetId
   }
 }
 
 // ============================================================================================
 
-output NetworkId string = deployCoreEnvironmentResources.outputs.NetworkId
-output DefaultSubNetId string = deployCoreEnvironmentResources.outputs.DefaultSubNetId
-output IpRanges array = deployCoreEnvironmentResources.outputs.IpRanges
+output VNetId string = deployEnvironmentResources.outputs.VNetId
+output VNetName string = deployEnvironmentResources.outputs.VNetName
+output DefaultSNetId string = deployEnvironmentResources.outputs.DefaultSNetId
+output DefaultSNetName string = deployEnvironmentResources.outputs.DefaultSNetName
+output IpRanges array = deployEnvironmentResources.outputs.IpRanges

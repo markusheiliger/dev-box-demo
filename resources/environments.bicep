@@ -16,8 +16,8 @@ param Features object
 
 // ============================================================================================
 
-module deployCoreEnvironmentSubscription 'core/deployCore-EnvironmentSubscription.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployCoreEnvironmentSubscription', EnvironmentDefinition.name)}'
+module deployEnvironmentSubscription 'core/resources/deployEnvironmentSubscription.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString('deployEnvironmentSubscription', EnvironmentDefinition.name)}'
   scope: subscription(EnvironmentDefinition.subscription)
   params: {
     EnvironmentDefinition: EnvironmentDefinition
@@ -31,10 +31,10 @@ module deployCoreEnvironmentSubscription 'core/deployCore-EnvironmentSubscriptio
 
 // ============================================================================================
 
-output NetworkIds array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: deployCoreEnvironmentSubscription[EnvIndex].outputs.NetworkId]
-output DefaultSubNetIds array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: deployCoreEnvironmentSubscription[EnvIndex].outputs.DefaultSubNetId]
+output VNetIds array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: deployEnvironmentSubscription[EnvIndex].outputs.VNetId]
+output DefaultSNetIds array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: deployEnvironmentSubscription[EnvIndex].outputs.DefaultSNetId]
 
 output EnvironmentInfos array = [for (EnvDef, EnvIndex) in ProjectDefinition.environments: {
   Environment: EnvDef
-  IpRanges: deployCoreEnvironmentSubscription[EnvIndex].outputs.IpRanges
+  IpRanges: deployEnvironmentSubscription[EnvIndex].outputs.IpRanges
 }]
