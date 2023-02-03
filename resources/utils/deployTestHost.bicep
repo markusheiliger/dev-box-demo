@@ -2,21 +2,31 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-param SubNetId string
+param VNetName string
+param SNetName string
 
 param Username string = 'godfather'
 
 @secure()
-param Password string = 'T00ManySecrets'
+param Password string = newGuid()
 
 // ============================================================================================
 
-var ResourceName = take('TH-${toUpper(uniqueString(SubNetId))}', 15)
+var ResourceName = take('TH-${toUpper(uniqueString(snet.id))}', 15)
 
 #disable-next-line no-loc-expr-outside-params
 var ResourceLocation = resourceGroup().location
 
 // ============================================================================================
+
+resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+  name: VNetName
+}
+
+resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+  name: SNetName
+  parent: vnet
+}
 
 resource nic 'Microsoft.Network/networkInterfaces@2021-05-01' = {
   name: ResourceName
@@ -27,12 +37,9 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-05-01' = {
         name: 'ipconfig1'
         properties: {
           subnet: {
-            id: SubNetId
+            id: snet.id
           }
           privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: {
-            id: pip.id
-          }
         }
       }
     ]
@@ -64,25 +71,13 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
   }
 }
 
-resource pip 'Microsoft.Network/publicIPAddresses@2021-05-01' = {
-  name: ResourceName
-  location: ResourceLocation
-  sku: {
-    name: 'Basic'
-  }
-  properties: {
-    publicIPAllocationMethod: 'dynamic'
-    publicIPAddressVersion: 'IPv4'
-    dnsSettings: {
-      domainNameLabel: toLower(ResourceName)
-    }
-    idleTimeoutInMinutes: 4
-  }
-}
-
 resource vm 'Microsoft.Compute/virtualMachines@2021-11-01' = {
   name: ResourceName
   location: ResourceLocation
+  tags: {
+    Username: Username
+    Password: Password
+  }
   properties: {
     hardwareProfile: {
       vmSize: 'Standard_B4ms'

@@ -2,55 +2,65 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-@description('The organization defintion to process')
 param OrganizationDefinition object
 
 param OrganizationInfo object
 
-@description('The project defintion to process')
 param ProjectDefinition object
 
-param ProjectInfo object
-
-@description('The environment defintion to process')
-param EnvironmentDefinition object
+param InitialDeployment bool = true
 
 // ============================================================================================
 
-var ResourceName = '${ProjectDefinition.name}-${EnvironmentDefinition.name}'
-
-// ============================================================================================
-
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
-  name: ResourceName
+resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = if (InitialDeployment) {
+  name: ProjectDefinition.name
   location: OrganizationDefinition.location
   properties: {
     addressSpace: {
       addressPrefixes: [
-        EnvironmentDefinition.ipRange  
+        ProjectDefinition.ipRange
       ]
-    } 
-  }
-}
-
-resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = {
-  name: 'default'
-  parent: virtualNetwork
-  properties: {
-    addressPrefix: EnvironmentDefinition.ipRange
-    routeTable: {
-        id: routes.id
     }
+    subnets: [
+      {
+        name: 'default'
+        properties: {
+          addressPrefix: ProjectDefinition.ipRange
+          routeTable: {
+              id: routes.id
+          }
+        }
+      }
+    ]
   }
 }
 
 resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
-  name: ResourceName
+  name: ProjectDefinition.name
   location: OrganizationDefinition.location
 }
 
+resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = {
+  name: 'default'
+  parent: routes
+  properties: {
+    nextHopType: 'VirtualAppliance'
+    addressPrefix: '0.0.0.0/0'
+    nextHopIpAddress: OrganizationInfo.GatewayIP
+  }
+}
+
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+  name: ProjectDefinition.name
+}
+
+resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+  name: 'default'
+  parent: virtualNetwork
+}
+
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: toLower('${EnvironmentDefinition.name}.${ProjectDefinition.name}.${OrganizationDefinition.zone}')
+  name: toLower('${ProjectDefinition.name}.${OrganizationDefinition.zone}')
   location: 'global'
 }
 
@@ -72,5 +82,7 @@ output VNetId string = virtualNetwork.id
 output VNetName string = virtualNetwork.name
 output DefaultSNetId string = defaultSubNet.id
 output DefaultSNetName string = defaultSubNet.name
+output RouteTableId string = routes.id
+output RouteTableName string = routes.name
 output DnsZoneId string = dnsZone.id
 output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes

@@ -11,7 +11,7 @@ param OperationId string = newGuid()
 // ============================================================================================
 
 resource hubNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
-  name: last(split(HubNetworkId, '/'))
+  name: any(last(split(HubNetworkId, '/')))
   scope: resourceGroup(split(HubNetworkId, '/')[2], split(HubNetworkId, '/')[4])
 }
 
@@ -25,7 +25,7 @@ module peerHub2Spoke 'peerNetwork.bicep' = [for i in range(0, length(SpokeNetwor
 }]
 
 resource spokeNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = [for SpokeNetworkId in SpokeNetworkIds: {
-  name: last(split(SpokeNetworkId, '/'))
+  name: any(last(split(SpokeNetworkId, '/')))
   scope: resourceGroup(split(SpokeNetworkId, '/')[2], split(SpokeNetworkId, '/')[4])
 }]
 

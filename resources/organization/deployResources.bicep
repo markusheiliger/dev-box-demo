@@ -2,19 +2,43 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-@description('The organization defintion to process')
 param OrganizationDefinition object
 
-@description('The project defintion to process')
-param ProjectDefinition object
+param InitialDeployment bool = true
 
 // ============================================================================================
 
 var DefaultSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'default'))
 
+var SubNetDefinitionsCustom = filter(OrganizationDefinition.network.subnets, net => !startsWith(net.name, 'Azure'))
+var SubNetDefinitionsAzure = filter(OrganizationDefinition.network.subnets, net => startsWith(net.name, 'Azure'))
+
+var SubNets = concat(
+  map(SubNetDefinitionsCustom, net => {
+    name: net.name
+    properties: {
+      addressPrefix: net.ipRange
+      routeTable: { id: routes.id }
+      privateEndpointNetworkPolicies: 'Disabled'
+      privateLinkServiceNetworkPolicies: 'Enabled' 
+    }
+  }),
+  map(SubNetDefinitionsAzure, net => {
+    name: net.name
+    properties: {
+      addressPrefix: net.ipRange
+    }
+  })
+)
+
 // ============================================================================================
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
+resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
+  name: OrganizationDefinition.name
+  location: OrganizationDefinition.location
+}
+
+resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = if (InitialDeployment) {
   name: OrganizationDefinition.name
   location: OrganizationDefinition.location
   properties: {
@@ -22,24 +46,18 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' = {
       addressPrefixes: [
         OrganizationDefinition.network.ipRange  
       ]
-    } 
-  }
+    }  
+    subnets: SubNets
+  }  
 }
 
-resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = {
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+  name: OrganizationDefinition.name
+}
+
+resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
   name: DefaultSubnetDefinition.name
   parent: virtualNetwork
-  properties: {
-    addressPrefix: DefaultSubnetDefinition.ipRange
-    routeTable: {
-        id: routes.id
-    }
-  }
-}
-
-resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
-  name: OrganizationDefinition.name
-  location: OrganizationDefinition.location
 }
 
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
@@ -48,9 +66,12 @@ resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 }
 
 resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  name: '${virtualNetwork.name}-${guid(virtualNetwork.id)}'
+  name: 'VNet-${guid(virtualNetwork.id)}'
   parent: dnsZone
   location: 'global'
+  dependsOn: [
+    virtualNetworkCreate
+  ]
   properties: {
     registrationEnabled: true
     virtualNetwork: {
@@ -58,6 +79,7 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
     }
   }
 }
+
 
 // ============================================================================================
 

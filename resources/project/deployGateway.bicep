@@ -2,13 +2,9 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-param VNetName string
-param SNetName string
-
-@description('The organization defintion to process')
 param OrganizationDefinition object
+param OrganizationInfo object
 
-@description('The project defintion to process')
 param ProjectDefinition object
 
 param DnsForwards array = []
@@ -19,10 +15,10 @@ param NetBlocks array = []
 
 // ============================================================================================
 
-var ResourceName = '${VNetName}-GW'
+var ResourceName = '${ProjectDefinition.name}-GW'
 
-var GatewayIPSegments = split(first(split(snet.properties.addressPrefix, '/')),'.')
-var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(last(GatewayIPSegments))+4}'
+var GatewayIPSegments = split(any(first(split(snet.properties.addressPrefix, '/'))),'.')
+var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(any(last(GatewayIPSegments)))+4}'
 
 var SetupDnsForwarderArguments = union(map(DnsForwards, item => '-f "${string(item)}"'), map(DnsClients, item => '-c "${string(item)}"'))
 var SetupDnsForwarderEnabled = length(DnsForwards) > 0
@@ -32,12 +28,8 @@ var SetupNetForwarderArguments = union(map(NetForwards, item => '-f "${string(it
 var SetupNetForwarderEnabled = (length(NetForwards) + length(NetBlocks)) > 0
 var SetupNetForwarderCommand = trim('./setupNetForwarder.sh -n "${vnet.id}" ${join(SetupNetForwarderArguments, ' ')} | tee ./setupNetForwarder.log')
 
-var GatewayInitScripts = [ 
-  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/core/gateway/scripts/initMachine.sh' 
-  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/core/gateway/scripts/setupDnsForwarder.sh' 
-  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/core/gateway/scripts/setupNetForwarder.sh' 
-  'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/core/gateway/scripts/setupWireGuard.sh' 
-]
+var GatewayInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
+var GatewayInitScriptNames = [ 'initGateway.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh', 'setupWireGuard.sh' ]
 
 var GatewayInitCommand = join(filter([
   './initMachine.sh'
@@ -48,11 +40,11 @@ var GatewayInitCommand = join(filter([
 // ============================================================================================
 
 resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
-  name: VNetName
+  name: ProjectDefinition.name
 }
 
 resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: SNetName
+  name: 'default'
   parent: vnet
 }
 
@@ -203,7 +195,7 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
     forceUpdateTag: guid(deployment().name)
     autoUpgradeMinorVersion: true
     settings: {      
-      fileUris: GatewayInitScripts
+      fileUris: map(GatewayInitScriptNames, name => uri(GatewayInitScriptsBaseUri, name))
       commandToExecute: GatewayInitCommand
     }
   }
@@ -211,4 +203,4 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
 
 // ============================================================================================
 
-output GatewayIp string = first(nic.properties.ipConfigurations).properties.privateIPAddress
+output GatewayIP string = any(first(nic.properties.ipConfigurations)).properties.privateIPAddress

@@ -2,7 +2,6 @@
 
 RESET='false'
 DUMP='false'
-CLEAN='false'
 
 usage() { 
 	echo "Usage: $0"
@@ -11,82 +10,76 @@ usage() {
 	echo " -p [REQUIRED] 	The project name"
 	echo " -d [FLAG] 		Dump the BICEP template in ARM format"
 	echo " -r [FLAG] 		Reset the full demo environment"
-	echo " -c [FLAG] 		Clean up the subscription mapped to an environment type"
 	exit 1; 
 }
 
 resetSubscription() {
 
 	local SUBSCRIPTIONID="$1"
-	local WAIT4OPERATIONS=0
-	
+
+	# delete developer cloud related resources
+	# ------------------------------------------------------------------------------
+
 	for POOLID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects/pools' --query [].id -o tsv | dos2unix); do
-		echo "$SUBSCRIPTIONID - Waiting for pool '$POOLID' ..." \
+		echo "$SUBSCRIPTIONID - Deleting devbox pool '$POOLID' ..." \
 			&& az resource show --ids $POOLID > /dev/null 2>&1 \
 			&& az devcenter admin pool wait --ids $POOLID --created --only-show-errors
 	done 
 
+	# delete subscription resources and resource groups
+	# ------------------------------------------------------------------------------
+
+	for DEPLOYMENTNAME  in $(az deployment sub list --subscription $SUBSCRIPTIONID --query '[?properties.provisioningState==`InProgress`].name' -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Canceling deployment '$DEPLOYMENTNAME' ..."
+		az deployment sub cancel --subscription $SUBSCRIPTIONID --name $DEPLOYMENTNAME -o none &
+	done; wait
+
+	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query '[?properties.provisioningState==`Succeeded`].name' -o tsv | dos2unix); do
+		for DEPLOYMENTNAME  in $(az deployment group list --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --query '[?properties.provisioningState==`InProgress`].name' -o tsv | dos2unix); do
+			echo "$SUBSCRIPTIONID - Canceling deployment '$DEPLOYMENTNAME' in resource group '$RESOURCEGROUP' ..."
+			az deployment group cancel --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --name $DEPLOYMENTNAME -o none &
+		done; wait
+		if [ $(az resource list --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --query '[] | length(@)' -o tsv) -gt 0 ]; then
+			echo "$SUBSCRIPTIONID - Deleting resource group '$RESOURCEGROUP' content ..."
+			az deployment group create --mode Complete --resource-group $RESOURCEGROUP --name $"$(uuidgen)" --template-uri https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/100-blank-template/azuredeploy.json -o none &
+		fi
+	done; wait
+
+	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query '[].name' -o tsv | dos2unix); do 
+		echo "$SUBSCRIPTIONID - Deleting resource group '$RESOURCEGROUP' ..." 
+		az group delete --subscription $SUBSCRIPTIONID --name $RESOURCEGROUP --yes -o none &
+	done; wait
+
 	for DEPLOYMENTNAME in $(az deployment sub list --subscription $SUBSCRIPTIONID --query [].name -o tsv | dos2unix); do
-		echo "$SUBSCRIPTIONID - Deleting deployment '$DEPLOYMENTNAME' ..." \
-			&& az deployment sub delete --subscription $SUBSCRIPTIONID --name $DEPLOYMENTNAME --no-wait
-	done
-
-	WAIT4OPERATIONS=0
-
-	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query [].name -o tsv | dos2unix); do
-		WAIT4OPERATIONS=1
-		echo "$SUBSCRIPTIONID - Deleting resource group '$RESOURCEGROUP' ..." \
-			&& az group delete --subscription $SUBSCRIPTIONID --name $RESOURCEGROUP --no-wait --yes
-	done
-
-	if [ $WAIT4OPERATIONS != 0 ]; then
-		echo "$SUBSCRIPTIONID - Waiting for resource group deletion ..."
-		while [ ! -z "$(az group list --subscription $SUBSCRIPTIONID --query [].name -o tsv | dos2unix)" ]; do sleep 5; done
-	fi
-}
-
-cleanupPurgableResources() {
-
-	local SUBSCRIPTIONID="$1"
-	local WAIT4OPERATIONS=0
-
-	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
-		WAIT4OPERATIONS=1
-		echo "$SUBSCRIPTIONID - Purging deleted key vault '$KEYVAULT' ..." \
-			&& az keyvault purge --subscription $SUBSCRIPTIONID --name $KEYVAULT --no-wait
-	done
-
-	for APPCONFIG in $(az appconfig list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
-		# no need to track operations for waiting as app configs cannot be purged with a no-wait option
-		echo "$SUBSCRIPTIONID - Purging deleted app configuration '$APPCONFIG' ..." \
-			&& az appconfig purge --subscription $SUBSCRIPTIONID --name $APPCONFIG --yes
-	done
-
-	if [ $WAIT4OPERATIONS != 0 ]; then
-		echo "$SUBSCRIPTIONID - Waiting for purge operations ..."
-		while [ ! -z "$(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix)" ]; do sleep 5; done
-		sleep 60 # give Azure some additional time to get it's state right after all these purges
-	fi
-
-}
-
-cleanupRoleDefinitionsAndAssignments() {
-
-	local SUBSCRIPTIONID="$1"
-
+		echo "$SUBSCRIPTIONID - Deleting deployment '$DEPLOYMENTNAME' ..." 
+		az deployment sub delete --subscription $SUBSCRIPTIONID --name $DEPLOYMENTNAME -o none &
+	done; wait
+	
 	for ASSIGNMENTID in $(az role assignment list --subscription $SUBSCRIPTIONID --query "[?(principalType=='ServicePrincipal' && principalName=='')].id" -o tsv | dos2unix); do
 		echo "Deleting orphan role assignment $ASSIGNMENTID"
-		az role assignment delete --subscription $SUBSCRIPTIONID --ids $ASSIGNMENTID --yes
-	done
+		az role assignment delete --subscription $SUBSCRIPTIONID --ids $ASSIGNMENTID --yes -o none &
+	done; wait
 
 	for DEFINITIONNAME in $(az role definition list --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID --query [].name -o tsv | dos2unix); do
 		echo "Deleting custom role definition $DEFINITIONNAME"
-		az role definition delete --name $DEFINITIONNAME --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID
-	done
+		az role definition delete --name $DEFINITIONNAME --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID -o none &
+	done; wait
 
+	# purge resources in soft-delete state
+	# ------------------------------------------------------------------------------
+
+	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
+		echo "$SUBSCRIPTIONID - Purging deleted key vault '$KEYVAULT' ..." 
+		az keyvault purge --subscription $SUBSCRIPTIONID --name $KEYVAULT -o none &
+	done; wait
+
+	for APPCONFIG in $(az appconfig list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
+		echo "$SUBSCRIPTIONID - Purging deleted app configuration '$APPCONFIG' ..." 
+		az appconfig purge --subscription $SUBSCRIPTIONID --name $APPCONFIG --yes -o none &
+	done; wait
 }
 
-while getopts 'o:p:drc' OPT; do
+while getopts 'o:p:dr' OPT; do
     case "$OPT" in
 		o)
 			ORGANIZATION="${OPTARG}" ;;
@@ -96,8 +89,6 @@ while getopts 'o:p:drc' OPT; do
 			DUMP='true' ;;
         r) 
 			RESET='true' ;;
-		c) 
-			CLEAN='true' ;;
 		*) 
 			usage ;;
     esac
@@ -122,20 +113,9 @@ az account set --subscription $SUBSCRIPTION -o none \
 	&& echo "Selected subscription '$(az account show --query name -o tsv | dos2unix)' ($SUBSCRIPTION) as organization home!" \
 	|| exit 1
 
-BACKGROUNDPIDS=()
-
-if [ "$CLEAN" = 'true' ] || [ "$RESET" = 'true' ]; then
-
-	for ENVIRONMENTSUBSCRIPTION in $(cat $PROJECT | jq --raw-output '.. | .subscription? // empty' | dos2unix); do
-		resetSubscription $ENVIRONMENTSUBSCRIPTION &
-		BACKGROUNDPIDS+=( "$!" )
-	done
-
-fi
-
 if [ "$RESET" = 'true' ]; then
 
-	RESETSUBSCRIPTIONS+=( "$SUBSCRIPTION" )
+	RESETSUBSCRIPTIONS=( "$SUBSCRIPTION" )
 
 	for PROJECTID in $(az resource list --resource-type 'Microsoft.DevCenter/projects' --query '[].id' -o tsv | dos2unix); do
 		for DEPLOYMENTTARGETID in $(az rest --method get --uri "https://management.azure.com$PROJECTID/environmentTypes?api-version=2022-09-01-preview" | jq --raw-output '.. | .deploymentTargetId? | select(. != null)' | dos2unix); do
@@ -144,31 +124,10 @@ if [ "$RESET" = 'true' ]; then
 	done
 
 	for RESETSUBSCRIPTION in "${RESETSUBSCRIPTIONS[@]}"; do
-		resetSubscription $RESETSUBSCRIPTION &
-		BACKGROUNDPIDS+=( "$!" )
-	done
+		resetSubscription $RESETSUBSCRIPTION &		
+	done; wait
 
 fi
-
-for BACKGROUNDPID in "${BACKGROUNDPIDS[@]}"; do
-	[ ! -z "$BACKGROUNDPID" ] && wait $BACKGROUNDPID
-done
-
-cleanupPurgableResources $SUBSCRIPTION &
-BACKGROUNDPIDS=( "$!" )
-cleanupRoleDefinitionsAndAssignments $SUBSCRIPTION &
-BACKGROUNDPIDS+=( "$!" )
-
-for ENVIRONMENTSUBSCRIPTION in $(cat $PROJECT | jq --raw-output '.. | .subscription? // empty' | dos2unix); do
-	cleanupPurgableResources $ENVIRONMENTSUBSCRIPTION &
-	BACKGROUNDPIDS+=( "$!" )
-	cleanupRoleDefinitionsAndAssignments $ENVIRONMENTSUBSCRIPTION &
-	BACKGROUNDPIDS+=( "$!" )
-done
-
-for BACKGROUNDPID in "${BACKGROUNDPIDS[@]}"; do
-	[ ! -z "$BACKGROUNDPID" ] && wait $BACKGROUNDPID
-done
 
 UPN=$(grep -Eom1 "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" $PROJECT)
 

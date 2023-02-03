@@ -15,50 +15,8 @@ var EnvTypes = contains(OrganizationDefinition, 'environments') ? OrganizationDe
 var Catalogs = contains(OrganizationDefinition, 'catalogs') ? OrganizationDefinition.catalogs : []
 var CatalogsGitHub = filter(Catalogs, Catalog => Catalog.type == 'gitHub')
 var CatalogsAdoGit = filter(Catalogs, Catalog => Catalog.type == 'adoGit')
-var DefaultSubnetIpRange = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'default')).ipRange
 
 // ============================================================================================
-
-resource workspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
-  name: OrganizationDefinition.name
-  location: OrganizationDefinition.location
-  properties: {
-    sku: {
-      name: 'PerGB2018'
-    }
-    retentionInDays: 90
-    forceCmkForQuery: false
-    publicNetworkAccessForIngestion: 'Enabled'
-    publicNetworkAccessForQuery: 'Enabled'
-    features: {
-      disableLocalAuth: false
-      enableLogAccessUsingOnlyResourcePermissions: true
-    }
-    workspaceCapping: {
-      dailyQuotaGb: -1
-    }
-  }
-}
-
-resource workspaceLA 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: OrganizationDefinition.name
-  scope: workspace
-  properties: {
-    workspaceId: workspace.id
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
 
 resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: 'b24988ac-6180-42a0-ab88-20f7382dd24c' // https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#contributor
@@ -66,67 +24,6 @@ resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022
 
 resource readerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: 'acdd72a7-3385-48ef-bd42-f606fba81ae7' // https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#reader
-}
-
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-01-01' = {
-  name: OrganizationDefinition.name
-  location: OrganizationDefinition.location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        OrganizationDefinition.network.ipRange
-      ]
-    }
-  }
-}
-
-resource subNetwork 'Microsoft.Network/virtualNetworks/subnets@2022-05-01' = {
-  name: 'default'
-  parent: virtualNetwork
-  properties: {
-    addressPrefix: DefaultSubnetIpRange
-    privateEndpointNetworkPolicies: 'Disabled'
-  }
-}
-
-module deployJumpHost 'deployJumpHost.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString('deployJumpHost')}'
-  params: {
-    JumpHostNetworkId: subNetwork.id
-    JumpHostPrefix: OrganizationDefinition.name
-    JumpHostLocation: OrganizationDefinition.location
-  } 
-}
-
-resource virtualNetworkLA 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: '${OrganizationDefinition.name}-LA'
-  scope: virtualNetwork
-  properties: {
-    workspaceId: workspace.id
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
-resource privateDnsZone  'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: OrganizationDefinition.zone
-  location: 'global'
-}
-
-resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  name: virtualNetwork.name
-  location: 'global'
-  parent: privateDnsZone
-  properties: {
-    registrationEnabled: true
-    virtualNetwork: {
-      id: virtualNetwork.id
-    }
-  }
 }
 
 resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
@@ -182,20 +79,21 @@ resource galleryReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@20
   }
 }
 
-module attachGallery 'attachGallery.bicep' = {
-  name:'${take(deployment().name, 36)}_${uniqueString('attachGallery', gallery.id)}'
+resource attachGallery 'Microsoft.DevCenter/devcenters/galleries@2022-10-12-preview' = {
+  name: gallery.name
+  parent: devCenter
   dependsOn: [
-    galleryReaderRoleAssignment
     galleryContributorRoleAssignment
+    galleryReaderRoleAssignment
   ]
-  params: {
-    DevCenterName: devCenter.name
-    GalleryId: gallery.id
+  properties: {
+    #disable-next-line use-resource-id-functions
+    galleryResourceId: gallery.id
   }
 }
 
 resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
-  name: OrganizationDefinition.name
+  name: any(OrganizationDefinition.name)
   location: OrganizationDefinition.location
   properties: {
     tenantId: subscription().tenantId
@@ -259,10 +157,6 @@ resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-10-12-previ
   }
 }]
 
-output OrganizationNetworkId string = virtualNetwork.id
-output OrganizationNetworkName string = virtualNetwork.name
-output OrganizationWorkspaceId string = workspace.id
-output OrganizationDevCenterId string = devCenter.id
-output OrganizationDevCenterIdentity string = devCenter.identity.principalId
-output OrganizationDevCenterName string = devCenter.name
-output OrganizationGalleryId string = gallery.id
+// ============================================================================================
+
+output DevCenterId string = devCenter.id

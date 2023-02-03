@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 
 param DevCenterName string
 
-param GalleryId string
+param NetworkConnectionId string
 
 // ============================================================================================
 
@@ -12,11 +12,10 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' existing 
   name: DevCenterName
 }
 
-resource attachGallery 'Microsoft.DevCenter/devcenters/galleries@2022-10-12-preview' = {
-  name: last(split(GalleryId, '/'))
+resource attachNetworkConnection 'Microsoft.DevCenter/devcenters/attachednetworks@2022-10-12-preview' = {
+  name: any(last(split(NetworkConnectionId, '/')))
   parent: devCenter
   properties: {
-    #disable-next-line use-resource-id-functions
-    galleryResourceId: GalleryId
+    networkConnectionId: NetworkConnectionId
   }
 }
