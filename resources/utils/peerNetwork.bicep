@@ -2,11 +2,10 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-@description('Set the local VNet name')
 param LocalVirtualNetworkName string
-
-@description('Set the remote VNet identifier')
 param RemoteVirtualNetworkId string
+param WaitUntilSucceeded bool = false
+param OperationId string = newGuid()
 
 // ============================================================================================
 
@@ -14,9 +13,19 @@ resource localVirtualNetwork 'Microsoft.Network/virtualNetworks@2022-01-01' exis
   name: LocalVirtualNetworkName
 }
 
+// module testVirtualNetworkSucceeded 'testResourceState.bicep' = {
+//   name: '${take(deployment().name, 36)}_${uniqueString('testVirtualNetworkSucceeded', OperationId)}'
+//   params: {
+//     ResourceId: localVirtualNetwork.id
+//   }
+// }
+
 resource peerVirtualNetwork 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2021-02-01' = {
   name: 'peer-${guid(RemoteVirtualNetworkId)}'
   parent: localVirtualNetwork
+  dependsOn: [
+    // testVirtualNetworkSucceeded
+  ]
   properties: {
     allowVirtualNetworkAccess: true
     allowForwardedTraffic: true
@@ -28,3 +37,9 @@ resource peerVirtualNetwork 'Microsoft.Network/virtualNetworks/virtualNetworkPee
   }
 }
 
+module testVirtualNetworkPeeringSucceeded 'testResourceState.bicep' = if (WaitUntilSucceeded) {
+  name: '${take(deployment().name, 36)}_${uniqueString('testVirtualNetworkPeeringSucceeded', OperationId)}'
+  params: {
+    ResourceId: peerVirtualNetwork.id
+  }
+}

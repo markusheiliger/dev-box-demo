@@ -23,6 +23,21 @@ var ResourceName = '${ProjectDefinition.name}-${EnvironmentDefinition.name}'
 
 // ============================================================================================
 
+resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
+  name: ResourceName
+  location: OrganizationDefinition.location
+}
+
+resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = {
+  name: 'default'
+  parent: routes
+  properties: {
+    nextHopType: 'VirtualAppliance'
+    addressPrefix: '0.0.0.0/0'
+    nextHopIpAddress: ProjectInfo.GatewayIP
+  }
+}
+
 resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = if (InitialDeployment) {
   name: ResourceName
   location: OrganizationDefinition.location
@@ -43,21 +58,6 @@ resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = i
         }
       }      
     ]
-  }
-}
-
-resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
-  name: ResourceName
-  location: OrganizationDefinition.location
-}
-
-resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = {
-  name: 'default'
-  parent: routes
-  properties: {
-    nextHopType: 'VirtualAppliance'
-    addressPrefix: '0.0.0.0/0'
-    nextHopIpAddress: ProjectInfo.GatewayIP
   }
 }
 
@@ -84,6 +84,27 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
     virtualNetwork: {
       id: virtualNetwork.id
     }
+  }
+}
+
+module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
+  name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
+  params: {
+    VNetName: virtualNetwork.name
+    DnsServers: [ 
+      'default'
+      ProjectInfo.GatewayIP
+      OrganizationInfo.GatewayIP
+    ]
+  }
+}
+
+module peerNetworks '../utils/peerNetworks.bicep' = {
+  name: '${take(deployment().name, 36)}_peerNetworks'
+  scope: subscription()
+  params: {
+    HubNetworkId: ProjectInfo.NetworkId
+    SpokeNetworkIds: [ virtualNetwork.id ]
   }
 }
 

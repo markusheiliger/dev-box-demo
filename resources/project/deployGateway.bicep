@@ -29,7 +29,7 @@ var SetupNetForwarderEnabled = (length(NetForwards) + length(NetBlocks)) > 0
 var SetupNetForwarderCommand = trim('./setupNetForwarder.sh -n "${vnet.id}" ${join(SetupNetForwarderArguments, ' ')} | tee ./setupNetForwarder.log')
 
 var GatewayInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
-var GatewayInitScriptNames = [ 'initGateway.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh', 'setupWireGuard.sh' ]
+var GatewayInitScriptNames = [ 'initMachine.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh', 'setupWireGuard.sh' ]
 
 var GatewayInitCommand = join(filter([
   './initMachine.sh'
@@ -181,6 +181,27 @@ resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2020
   }
 }
 
+// resource gatewayDiag 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
+//   name: 'Diag'
+//   location: OrganizationDefinition.location
+//   parent: gateway
+//   dependsOn: [
+//     contributorRoleAssignment
+//   ]
+//   properties: {
+//     publisher: 'Microsoft.EnterpriseCloud.Monitoring'
+//     type: 'MicrosoftMonitoringAgent'
+//     typeHandlerVersion: '1.0'
+//     autoUpgradeMinorVersion: true
+//     settings: {
+//         workspaceId: OrganizationInfo.WorkspaceId
+//     }
+//     protectedSettings: {
+//         workspaceKey: listKeys(OrganizationInfo.WorkspaceId, '2022-10-01').primarySharedKey
+//     }
+//   }
+// }
+
 resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
   name: 'Init'
   location: OrganizationDefinition.location
@@ -201,6 +222,18 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
   }
 }
 
+module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
+  name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
+  params: {
+    VNetName: vnet.name
+    DnsServers: [ 
+      'default'
+      nic.properties.ipConfigurations[0].properties.privateIPAddress
+      OrganizationInfo.GatewayIP
+    ]
+  }
+}
+
 // ============================================================================================
 
-output GatewayIP string = any(first(nic.properties.ipConfigurations)).properties.privateIPAddress
+output GatewayIP string = nic.properties.ipConfigurations[0].properties.privateIPAddress

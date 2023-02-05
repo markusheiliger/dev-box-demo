@@ -6,6 +6,8 @@ targetScope = 'resourceGroup'
 @description('The organization defintion to process')
 param OrganizationDefinition object
 
+param WorkspaceId string = ''
+
 // ============================================================================================
 
 var FirewallDnsServers = union(['168.63.129.16'], map(
@@ -30,24 +32,31 @@ resource firewallSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' e
   parent: virtualNetwork
 }
 
-resource firewallLocalSourceIps 'Microsoft.Network/ipGroups@2022-01-01' = {
-  name: '${FirewallResourceName}-LOCAL'
-  location: OrganizationDefinition.location
-  properties: {
-    ipAddresses: virtualNetwork.properties.addressSpace.addressPrefixes
+module updateIPGroups '../utils/updateIPGroups.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('updateIPGroups', resourceGroup().id)}'
+  params: {
+    VNetName: virtualNetwork.name
   }
 }
 
-resource firewallPeeredSourceIps 'Microsoft.Network/ipGroups@2022-01-01' = {
-  name: '${FirewallResourceName}-PEERED'
-  location: OrganizationDefinition.location
-  dependsOn: [
-    firewallLocalSourceIps
-  ]
-  properties: {
-    ipAddresses: flatten(map(virtualNetwork.properties.virtualNetworkPeerings, peer => peer.properties.remoteVirtualNetworkAddressSpace.addressPrefixes))
-  }
-}
+// resource firewallLocalSourceIps 'Microsoft.Network/ipGroups@2022-01-01' = {
+//   name: '${FirewallResourceName}-LOCAL'
+//   location: OrganizationDefinition.location
+//   properties: {
+//     ipAddresses: virtualNetwork.properties.addressSpace.addressPrefixes
+//   }
+// }
+
+// resource firewallPeeredSourceIps 'Microsoft.Network/ipGroups@2022-01-01' = {
+//   name: '${FirewallResourceName}-PEERED'
+//   location: OrganizationDefinition.location
+//   dependsOn: [
+//     firewallLocalSourceIps
+//   ]
+//   properties: {
+//     ipAddresses: flatten(map(virtualNetwork.properties.virtualNetworkPeerings, peer => peer.properties.remoteVirtualNetworkAddressSpace.addressPrefixes))
+//   }
+// }
 
 resource firewallRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = {
   name: FirewallResourceName
@@ -75,8 +84,7 @@ resource firewallPolicy 'Microsoft.Network/firewallPolicies@2022-07-01' = {
   name: FirewallResourceName
   location: OrganizationDefinition.location
   dependsOn: [
-    firewallLocalSourceIps
-    firewallPeeredSourceIps
+    updateIPGroups
   ]
   properties: {
     threatIntelMode: 'Alert'
@@ -105,7 +113,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'time-windows-address'
             ipProtocols: [ 'UDP' ]
-            sourceIpGroups: [ firewallLocalSourceIps.id, firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupLocalId, updateIPGroups.outputs.IPGroupPeeredId ]
             destinationAddresses: [ '13.86.101.172' ]
             destinationPorts: [ '123' ]
           }
@@ -113,7 +121,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'time-windows-fqdn'
             ipProtocols: [ 'UDP' ]
-            sourceIpGroups: [ firewallLocalSourceIps.id, firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupLocalId, updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [ 'time.windows.com' ]
             destinationPorts: [ '123' ]
           }
@@ -121,7 +129,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'microsoft-login'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallLocalSourceIps.id, firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupLocalId, updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [ 
               split(environment().authentication.loginEndpoint, '/')[2] 
               'login.windows.net'
@@ -132,7 +140,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'microsoft-connect'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallLocalSourceIps.id, firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupLocalId, updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [ 'www.msftconnecttest.com' ]
             destinationPorts: [ '443' ]
           }
@@ -150,7 +158,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-common'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [
               'oneocsp.microsoft.com'
               'www.microsoft.com'
@@ -161,7 +169,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-storage'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [
               'mrsglobalsteus2prod.blob.${environment().suffixes.storage}'
               'wvdportalstorageblob.blob.${environment().suffixes.storage}'
@@ -172,7 +180,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-services'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationAddresses: [
               'WindowsVirtualDesktop'
               'AzureFrontDoor.Frontend'
@@ -184,7 +192,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-kms'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [
               'azkms.${environment().suffixes.storage}'
               'kms.${environment().suffixes.storage}'
@@ -195,7 +203,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-devices'
             ipProtocols: [ 'TCP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [
               'global.azure-devices-provisioning.net'
             ]
@@ -205,7 +213,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-fastpath-ip'
             ipProtocols: [ 'UDP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationAddresses: [ '13.107.17.41' ]
             destinationPorts: [ '3478' ]
           }  
@@ -213,7 +221,7 @@ resource defaultNetworkRuleCollectionGroup 'Microsoft.Network/firewallPolicies/r
             ruleType: 'NetworkRule'
             name: 'avd-fastpath-fqdn'
             ipProtocols: [ 'UDP' ]
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
             destinationFqdns: [ 'stun.azure.com' ]
             destinationPorts: [ '3478' ]
           }  
@@ -257,7 +265,7 @@ resource defaultApplicationRuleCollectionGroup 'Microsoft.Network/firewallPolici
               'WindowsUpdate'
             ]
             terminateTLS: false
-            sourceIpGroups: [ firewallLocalSourceIps.id, firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupLocalId, updateIPGroups.outputs.IPGroupPeeredId ]
           }
           {
             ruleType: 'ApplicationRule'
@@ -281,7 +289,7 @@ resource defaultApplicationRuleCollectionGroup 'Microsoft.Network/firewallPolici
               '*.azure-dns.net'
             ]
             terminateTLS: false
-            sourceIpGroups: [ firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupPeeredId ]
           }
         ]
       }
@@ -310,9 +318,10 @@ resource defaultApplicationRuleCollectionGroup 'Microsoft.Network/firewallPolici
               'ComputersAndTechnology'
               'InformationSecurity'
               'WebRepositoryAndStorage'
+              'SearchEnginesAndPortals'
             ]
             terminateTLS: false
-            sourceIpGroups: [ firewallLocalSourceIps.id, firewallPeeredSourceIps.id ]
+            sourceIpGroups: [ updateIPGroups.outputs.IPGroupLocalId, updateIPGroups.outputs.IPGroupPeeredId ]
           }
         ]
       }
@@ -344,6 +353,45 @@ resource firewall 'Microsoft.Network/azureFirewalls@2022-07-01' = {
     firewallPolicy: {
       id: firewallPolicy.id
     }
+  }
+}
+
+resource firewallDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(WorkspaceId)) {
+  name: firewall.name
+  scope: firewall
+  properties: {
+    workspaceId: WorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+        retentionPolicy: {
+          days: 7
+          enabled: true
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          days: 7
+          enabled: true
+        }
+      }
+    ]
+  }
+}
+
+module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
+  name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
+  params: {
+    VNetName: virtualNetwork.name
+    DnsServers: [
+      'default'
+      firewall.properties.ipConfigurations[0].properties.privateIPAddress
+    ]
   }
 }
 

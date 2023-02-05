@@ -42,7 +42,7 @@ resource environmentResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01
   location: OrganizationDefinition.location
 }
 
-module existsVirtualNetwork 'utils/existsResource.bicep' = {
+module testResourceExists 'utils/testResourceExists.bicep' = {
   name: '${take(deployment().name, 36)}_existsVirtualNetwork'
   scope: environmentResourceGroup
   params: {
@@ -60,7 +60,7 @@ module deployResources 'environment/deployResources.bicep' = {
     OrganizationInfo: OrganizationInfo
     ProjectDefinition: ProjectDefinition
     ProjectInfo: ProjectInfo
-    InitialDeployment: !existsVirtualNetwork.outputs.ResourceExists
+    InitialDeployment: !testResourceExists.outputs.ResourceExists
   }
 }
 
@@ -80,14 +80,6 @@ module deployTestHost 'utils/deployTestHost.bicep' = if (Features.TestHost) {
   params: {
     SNetName: deployResources.outputs.DefaultSNetName
     VNetName: deployResources.outputs.VNetName
-  }
-}
-
-module peerNetworks 'utils/peerNetworks.bicep' = {
-  name: '${take(deployment().name, 36)}_peerNetworks'
-  params: {
-    HubNetworkId: ProjectInfo.NetworkId
-    SpokeNetworkIds: [ deployResources.outputs.VNetId ]
   }
 }
 

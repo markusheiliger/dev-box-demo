@@ -6,6 +6,8 @@ targetScope = 'resourceGroup'
 @description('The organization defintion to process')
 param OrganizationDefinition object
 
+param WorkspaceId string = ''
+
 // ============================================================================================
 
 var BastionSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'AzureBastionSubnet'))
@@ -58,4 +60,30 @@ resource bastion 'Microsoft.Network/bastionHosts@2022-07-01' = {
   }
 }
 
-
+resource bastionDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(WorkspaceId)) {
+  name: bastion.name
+  scope: bastion
+  properties: {
+    workspaceId: WorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+        retentionPolicy: {
+          days: 7
+          enabled: true
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          days: 7
+          enabled: true
+        }
+      }
+    ]
+  }
+}

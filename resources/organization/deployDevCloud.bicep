@@ -8,6 +8,8 @@ param OrganizationDefinition object
 @description('The Windows 365 principal id')
 param Windows365PrinicalId string
 
+param WorkspaceId string = ''
+
 // ============================================================================================
 
 var DevBoxes = contains(OrganizationDefinition, 'devboxes') ? OrganizationDefinition.devboxes : []
@@ -31,6 +33,33 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
   location: OrganizationDefinition.location
   identity: {
     type:'SystemAssigned'
+  }
+}
+
+resource devCenterDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(WorkspaceId)) {
+  name: devCenter.name
+  scope: devCenter
+  properties: {
+    workspaceId: WorkspaceId
+    logs: [
+      {
+        categoryGroup: 'audit'
+        enabled: true
+        retentionPolicy: {
+          days: 7
+          enabled: true
+        }
+      }
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+        retentionPolicy: {
+          days: 7
+          enabled: true
+        }
+      }
+    ]
+    metrics: []
   }
 }
 

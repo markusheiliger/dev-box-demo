@@ -2,9 +2,10 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-param ResourceType string
+param ResourceId string
 
-param ResourceName string
+@allowed([ 'Canceled', 'Deleting', 'Failed', 'InProgress', 'Succeeded' ])
+param ResourceState string = 'Succeeded'
 
 param TimeStamp string = utcNow()
 
@@ -12,12 +13,13 @@ param TimeStamp string = utcNow()
 
 #disable-next-line no-loc-expr-outside-params
 var ResourceLocation = resourceGroup().location
-var ResourceId = resourceId(ResourceType, ResourceName)
+
+var Command= 'az resource wait --ids \'${ResourceId}\' --custom \'properties.provisioningState==`${ResourceState}`\''
 
 // ============================================================================================
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = {
-  name: 'ExistsResource'
+  name: 'ResourceState'
   location: ResourceLocation
 }
 
@@ -35,7 +37,7 @@ resource readerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-0
 }
 
 resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
-  name: 'ExistsResource-${guid(ResourceId)}'
+  name: 'ResourceState-${guid(ResourceId, ResourceState)}'
   location: ResourceLocation
   identity: {
     type: 'UserAssigned'
@@ -51,13 +53,13 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
     forceUpdateTag: TimeStamp
     azCliVersion: '2.40.0'
     timeout: 'PT30M'
-    scriptContent: 'az config set extension.use_dynamic_install=yes_without_prompt; result=$(az resource show --ids \'${ResourceId}\' 2> /dev/null); jq -c --null-input --argjson exists $(if [ -z "$result" ]; then echo false; else echo true; fi) \'{ exists: $exists }\' > $AZ_SCRIPTS_OUTPUT_PATH'
+    scriptContent: 'az config set extension.use_dynamic_install=yes_without_prompt; ${Command}'
     cleanupPreference: 'Always'
-    retentionInterval: 'P1D'
+    retentionInterval: 'PT1H'
+    // retentionInterval: 'P1D'
   }
 }
 
 // ============================================================================================
 
 output ResourceId string = ResourceId
-output ResourceExists bool = deploymentScript.properties.outputs.exists

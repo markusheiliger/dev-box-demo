@@ -17,7 +17,7 @@ resource organizationResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-0
   location: OrganizationDefinition.location
 }
 
-module existsVirtualNetwork 'utils/existsResource.bicep' = {
+module testResourceExists 'utils/testResourceExists.bicep' = {
   name: '${take(deployment().name, 36)}_existsVirtualNetwork'
   scope: organizationResourceGroup
   params: {
@@ -26,12 +26,20 @@ module existsVirtualNetwork 'utils/existsResource.bicep' = {
   }
 }
 
+module deployMonitoring 'organization/deployMonitoring.bicep' = {
+  name: '${take(deployment().name, 36)}_deployMonitoring'
+  scope: organizationResourceGroup
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+  }
+}
+
 module deployResources './organization/deployResources.bicep' = {
   name: '${take(deployment().name, 36)}_deployResources'
   scope: organizationResourceGroup
   params: {
     OrganizationDefinition: OrganizationDefinition
-    InitialDeployment: !existsVirtualNetwork.outputs.ResourceExists
+    InitialDeployment: !testResourceExists.outputs.ResourceExists
   }
 }
 
@@ -43,10 +51,11 @@ module deployGateway './organization/deployGateway.bicep' = {
   ]
   params: {
     OrganizationDefinition: OrganizationDefinition
+    WorkspaceId: deployMonitoring.outputs.WorkspaceId
   }
 }
 
-module deployBastion 'organization/deployBastion.bicep' ={
+module deployBastion 'organization/deployBastion.bicep' = {
   name: '${take(deployment().name, 36)}_deployBastion'
   scope: organizationResourceGroup
   dependsOn: [
@@ -54,6 +63,7 @@ module deployBastion 'organization/deployBastion.bicep' ={
   ]
   params: {
     OrganizationDefinition: OrganizationDefinition
+    WorkspaceId: deployMonitoring.outputs.WorkspaceId
   }
 }
 
@@ -66,6 +76,7 @@ module deployDevCloud 'organization/deployDevCloud.bicep' = {
   params: {
     OrganizationDefinition: OrganizationDefinition
     Windows365PrinicalId: Windows365PrinicalId
+    WorkspaceId: deployMonitoring.outputs.WorkspaceId
   }
 }
 
@@ -86,15 +97,17 @@ resource privateLinkZonesResourceGroup 'Microsoft.Resources/resourceGroups@2022-
   location: OrganizationDefinition.location
 }
 
-module deployPrivateLinkZones 'shared/deployPrivateLinkZones.bicep' = {
-  name: '${take(deployment().name, 36)}_deployPrivateLinkZones'
+module attachPrivateLinkZones 'utils/attachPrivateLinkZones.bicep' = {
+  name: '${take(deployment().name, 36)}_attachPrivateLinkZones'
   scope: privateLinkZonesResourceGroup
   params: {
+    NetworkId: deployResources.outputs.VNetId
     PrivateDnsZones: [
       'privatelink.blob.${az.environment().suffixes.storage}'
     ]
   }
 }
+
 // ============================================================================================
 
 output OrganizationInfo object = {
@@ -106,4 +119,5 @@ output OrganizationInfo object = {
   DnsZoneId: deployResources.outputs.DnsZoneId
   DevCenterId: deployDevCloud.outputs.DevCenterId
   GatewayIP: deployGateway.outputs.GatewayIP
+  WorkspaceId: deployMonitoring.outputs.WorkspaceId
 }

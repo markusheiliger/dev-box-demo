@@ -17,7 +17,7 @@ resource projectResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = 
   location: OrganizationDefinition.location
 }
 
-module existsVirtualNetwork 'utils/existsResource.bicep' = {
+module testResourceExists 'utils/testResourceExists.bicep' = {
   name: '${take(deployment().name, 36)}_existsVirtualNetwork'
   scope: projectResourceGroup
   params: {
@@ -33,15 +33,7 @@ module deployResources 'project/deployResources.bicep' = {
     OrganizationDefinition: OrganizationDefinition
     OrganizationInfo: OrganizationInfo
     ProjectDefinition: ProjectDefinition
-    InitialDeployment: !existsVirtualNetwork.outputs.ResourceExists
-  }
-}
-
-module peerNetworks 'utils/peerNetworks.bicep' = {
-  name: '${take(deployment().name, 36)}_peerNetworks'
-  params: {
-    HubNetworkId: OrganizationInfo.NetworkId
-    SpokeNetworkIds: [ deployResources.outputs.VNetId ]
+    InitialDeployment: !testResourceExists.outputs.ResourceExists
   }
 }
 
@@ -50,7 +42,6 @@ module deployGateway 'project/deployGateway.bicep' = {
   scope: projectResourceGroup
   dependsOn: [
     deployResources
-    peerNetworks
   ]
   params: {
     OrganizationDefinition: OrganizationDefinition
@@ -63,7 +54,7 @@ module deployDevCloud 'project/deployDevCloud.bicep' = {
   name: '${take(deployment().name, 36)}_deployDevCloud'
   scope: projectResourceGroup
   dependsOn: [
-    deployResources
+    deployGateway
   ]
   params: {
     OrganizationDefinition: OrganizationDefinition

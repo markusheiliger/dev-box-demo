@@ -12,6 +12,21 @@ param InitialDeployment bool = true
 
 // ============================================================================================
 
+resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
+  name: ProjectDefinition.name
+  location: OrganizationDefinition.location
+}
+
+resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = {
+  name: 'default'
+  parent: routes
+  properties: {
+    nextHopType: 'VirtualAppliance'
+    addressPrefix: '0.0.0.0/0'
+    nextHopIpAddress: OrganizationInfo.GatewayIP
+  }
+}
+
 resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = if (InitialDeployment) {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location
@@ -32,21 +47,6 @@ resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = i
         }
       }
     ]
-  }
-}
-
-resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
-  name: ProjectDefinition.name
-  location: OrganizationDefinition.location
-}
-
-resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = {
-  name: 'default'
-  parent: routes
-  properties: {
-    nextHopType: 'VirtualAppliance'
-    addressPrefix: '0.0.0.0/0'
-    nextHopIpAddress: OrganizationInfo.GatewayIP
   }
 }
 
@@ -73,6 +73,16 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
     virtualNetwork: {
       id: virtualNetwork.id
     }
+  }
+}
+
+module peerNetworks '../utils/peerNetworks.bicep' = {
+  name: '${take(deployment().name, 36)}_peerNetworks'
+  scope: subscription()
+  params: {
+    HubNetworkId: OrganizationInfo.NetworkId
+    SpokeNetworkIds: [ virtualNetwork.id ]
+    UpdateHubNetworkIPGroups: true
   }
 }
 

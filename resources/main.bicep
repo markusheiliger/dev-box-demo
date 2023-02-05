@@ -38,6 +38,7 @@ module mainProject 'mainProject.bicep' = {
   }
 }
 
+@batchSize(1)
 module deployEnvironment 'mainEnvironment.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
   name: '${take(deployment().name, 36)}_mainEnvironment_${EnvironmentDefinition.name}'
   scope: subscription(EnvironmentDefinition.subscription)
