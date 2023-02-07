@@ -47,6 +47,13 @@ resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = i
         EnvironmentDefinition.ipRange  
       ]
     } 
+    dhcpOptions: {
+      dnsServers: [
+        '168.63.129.16'
+        ProjectInfo.GatewayIP
+        OrganizationInfo.GatewayIP
+      ]
+    }
     subnets: [
       {
         name: 'default'
@@ -87,15 +94,15 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
   }
 }
 
-module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
-  name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
-  params: {
-    VNetName: virtualNetwork.name
-    DnsServers: [ 
-      'default'
-      ProjectInfo.GatewayIP
-      OrganizationInfo.GatewayIP
-    ]
+resource dnsZoneLinkProject 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  name: '${virtualNetwork.name}-${guid(ProjectInfo.NetworkId)}'
+  parent: dnsZone
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: ProjectInfo.NetworkId
+    }
   }
 }
 

@@ -65,8 +65,8 @@ module deployResources 'environment/deployResources.bicep' = {
 }
 
 module attachEnvironment 'utils/attachEnvironment.bicep' = {
-  name: '${take(deployment().name, 36)}_attachEnvironment'
-  scope: resourceGroup(ProjectInfo.SubscriptionId ,ProjectInfo.ResourceGroupName)
+  name: '${take(deployment().name, 36)}_${uniqueString('attachEnvironment', EnvironmentDefinition.name)}'
+  scope: resourceGroup(ProjectInfo.SubscriptionId, ProjectInfo.ResourceGroupName)
   params:{
     ProjectName: ProjectDefinition.name
     EnvironmentName: EnvironmentDefinition.name

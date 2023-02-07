@@ -222,18 +222,6 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
   }
 }
 
-module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
-  name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
-  params: {
-    VNetName: vnet.name
-    DnsServers: [ 
-      'default'
-      nic.properties.ipConfigurations[0].properties.privateIPAddress
-      OrganizationInfo.GatewayIP
-    ]
-  }
-}
-
 // ============================================================================================
 
 output GatewayIP string = nic.properties.ipConfigurations[0].properties.privateIPAddress

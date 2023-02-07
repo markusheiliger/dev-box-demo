@@ -5,6 +5,8 @@ targetScope = 'resourceGroup'
 
 param VNetName string
 
+param PeeredOnly bool = false
+
 // ============================================================================================
 
 #disable-next-line no-loc-expr-outside-params
@@ -16,7 +18,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: VNetName
 }
 
-resource ipGroupLocal 'Microsoft.Network/ipGroups@2022-01-01' = {
+resource ipGroupLocal 'Microsoft.Network/ipGroups@2022-01-01' = if (!PeeredOnly) {
   name: '${vnet.name}-IPG-LOCAL'
   location: ResourceLocation
   properties: {

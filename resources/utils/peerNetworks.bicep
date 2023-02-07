@@ -51,5 +51,6 @@ module updateIPGroups 'updateIPGroups.bicep' = if (UpdateHubNetworkIPGroups) {
   ]
   params: {
     VNetName: any(last(split(HubNetworkId, '/')))
+    PeeredOnly: true
   }
 }

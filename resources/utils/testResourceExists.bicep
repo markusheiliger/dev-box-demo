@@ -6,7 +6,9 @@ param ResourceType string
 
 param ResourceName string
 
-param TimeStamp string = utcNow()
+param OperationId string = newGuid()
+
+param OperationIsolated bool = false
 
 // ============================================================================================
 
@@ -35,7 +37,8 @@ resource readerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-0
 }
 
 resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
-  name: 'ResourceExists-${guid(ResourceId)}'
+  #disable-next-line use-stable-resource-identifiers
+  name: 'ResourceExists-${guid(ResourceId, OperationIsolated ? OperationId : '')}'
   location: ResourceLocation
   identity: {
     type: 'UserAssigned'
@@ -48,7 +51,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   ]
   kind: 'AzureCLI'
   properties: {
-    forceUpdateTag: TimeStamp
+    forceUpdateTag: OperationId
     azCliVersion: '2.40.0'
     timeout: 'PT30M'
     scriptContent: 'az config set extension.use_dynamic_install=yes_without_prompt; result=$(az resource show --ids \'${ResourceId}\' 2> /dev/null); jq -c --null-input --argjson exists $(if [ -z "$result" ]; then echo false; else echo true; fi) \'{ exists: $exists }\' > $AZ_SCRIPTS_OUTPUT_PATH'

@@ -388,8 +388,9 @@ module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
   name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
   params: {
     VNetName: virtualNetwork.name
+    RoutesName: routes.name
     DnsServers: [
-      'default'
+      '168.63.129.16'
       firewall.properties.ipConfigurations[0].properties.privateIPAddress
     ]
   }
@@ -397,4 +398,4 @@ module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = {
 
 // ============================================================================================
 
-output GatewayIP string = any(first(firewall.properties.ipConfigurations)).properties.privateIPAddress
+output GatewayIP string = firewall.properties.ipConfigurations[0].properties.privateIPAddress

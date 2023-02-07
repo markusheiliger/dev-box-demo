@@ -13,18 +13,19 @@ resource localVirtualNetwork 'Microsoft.Network/virtualNetworks@2022-01-01' exis
   name: LocalVirtualNetworkName
 }
 
-// module testVirtualNetworkSucceeded 'testResourceState.bicep' = {
-//   name: '${take(deployment().name, 36)}_${uniqueString('testVirtualNetworkSucceeded', OperationId)}'
-//   params: {
-//     ResourceId: localVirtualNetwork.id
-//   }
-// }
+module testVirtualNetworkSucceeded 'testResourceState.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString('testVirtualNetworkSucceeded', localVirtualNetwork.id, OperationId)}'
+  params: {
+    ResourceId: localVirtualNetwork.id
+    OperationIsolated: true
+  }
+}
 
 resource peerVirtualNetwork 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2021-02-01' = {
   name: 'peer-${guid(RemoteVirtualNetworkId)}'
   parent: localVirtualNetwork
   dependsOn: [
-    // testVirtualNetworkSucceeded
+    testVirtualNetworkSucceeded
   ]
   properties: {
     allowVirtualNetworkAccess: true
@@ -38,7 +39,7 @@ resource peerVirtualNetwork 'Microsoft.Network/virtualNetworks/virtualNetworkPee
 }
 
 module testVirtualNetworkPeeringSucceeded 'testResourceState.bicep' = if (WaitUntilSucceeded) {
-  name: '${take(deployment().name, 36)}_${uniqueString('testVirtualNetworkPeeringSucceeded', OperationId)}'
+  name: '${take(deployment().name, 36)}_${uniqueString('testVirtualNetworkPeeringSucceeded', peerVirtualNetwork.id, OperationId)}'
   params: {
     ResourceId: peerVirtualNetwork.id
   }

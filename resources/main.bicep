@@ -6,12 +6,17 @@ targetScope = 'subscription'
 param OrganizationDefinition object
 
 @description('The project defintion to process')
-param ProjectDefinition object
+param ProjectDefinitions array
 
 @description('The Windows 365 principal id')
 param Windows365PrinicalId string
 
 // ============================================================================================
+
+var Environments = flatten(map(range(0, length(ProjectDefinitions)), i => map(ProjectDefinitions[i].environments, env => {
+  projectIndex: i
+  environment: env
+})))
 
 var Features = {
   TestHost: true
@@ -20,7 +25,7 @@ var Features = {
 // ============================================================================================
 
 module mainOrganization 'mainOrganization.bicep' = {
-  name: '${take(deployment().name, 36)}_mainOrganization'
+  name: '${take(deployment().name, 36)}_${uniqueString(string(OrganizationDefinition))}'
   params: {
     OrganizationDefinition: OrganizationDefinition
     Windows365PrinicalId: Windows365PrinicalId
@@ -28,26 +33,26 @@ module mainOrganization 'mainOrganization.bicep' = {
   }
 }
 
-module mainProject 'mainProject.bicep' = {
-  name: '${take(deployment().name, 36)}_mainProject'
+@batchSize(1)
+module mainProject 'mainProject.bicep' = [for ProjectDefinition in ProjectDefinitions: {
+  name: '${take(deployment().name, 36)}_${uniqueString(string(ProjectDefinition))}'
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationInfo: mainOrganization.outputs.OrganizationInfo
     ProjectDefinition: ProjectDefinition
     Features: Features
   }
-}
+}]
 
-@batchSize(1)
-module deployEnvironment 'mainEnvironment.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
-  name: '${take(deployment().name, 36)}_mainEnvironment_${EnvironmentDefinition.name}'
-  scope: subscription(EnvironmentDefinition.subscription)
+module deployEnvironment 'mainEnvironment.bicep' = [for e in Environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString(string(ProjectDefinitions[e.projectIndex]), string(e.environment))}'
+  scope: subscription(e.environment.subscription)
   params: {
     OrganizationDefinition: OrganizationDefinition
     OrganizationInfo: mainOrganization.outputs.OrganizationInfo
-    ProjectDefinition: ProjectDefinition
-    ProjectInfo: mainProject.outputs.ProjectInfo
-    EnvironmentDefinition: EnvironmentDefinition
+    ProjectDefinition: ProjectDefinitions[e.projectIndex]
+    ProjectInfo: mainProject[e.projectIndex].outputs.ProjectInfo
+    EnvironmentDefinition: e.environment
     Features: Features
   }
 }]

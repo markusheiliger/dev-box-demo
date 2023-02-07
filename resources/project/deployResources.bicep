@@ -36,6 +36,12 @@ resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = i
         ProjectDefinition.ipRange
       ]
     }
+    dhcpOptions: {
+      dnsServers: [
+        '168.63.129.16'
+        OrganizationInfo.GatewayIP
+      ]
+    }
     subnets: [
       {
         name: 'default'
@@ -77,7 +83,7 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
 }
 
 module peerNetworks '../utils/peerNetworks.bicep' = {
-  name: '${take(deployment().name, 36)}_peerNetworks'
+  name: '${take(deployment().name, 36)}_${uniqueString('peerNetworks', virtualNetwork.id)}'
   scope: subscription()
   params: {
     HubNetworkId: OrganizationInfo.NetworkId
