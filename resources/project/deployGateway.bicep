@@ -3,94 +3,51 @@ targetScope = 'resourceGroup'
 // ============================================================================================
 
 param OrganizationDefinition object
-param OrganizationInfo object
-
+param OrganizationGatewayIP string
 param ProjectDefinition object
-
-param DnsForwards array = []
-param DnsClients array = []
-
-param NetForwards array = []
-param NetBlocks array = []
 
 // ============================================================================================
 
 var ResourceName = '${ProjectDefinition.name}-GW'
 
-var GatewayIPSegments = split(any(first(split(snet.properties.addressPrefix, '/'))),'.')
+var GatewayDefinition = contains(ProjectDefinition, 'gateway') ? ProjectDefinition.gateway : {}
+var GatewayIPSegments = split(split(defaultSubNetwork.properties.addressPrefix, '/')[0],'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(any(last(GatewayIPSegments)))+4}'
-
-var SetupDnsForwarderArguments = union(map(DnsForwards, item => '-f "${string(item)}"'), map(DnsClients, item => '-c "${string(item)}"'))
-var SetupDnsForwarderEnabled = length(DnsForwards) > 0
-var SetupDnsForwarderCommand = trim('./setupDnsForwarder.sh -n "${vnet.id}" ${join(SetupDnsForwarderArguments, ' ')} | tee ./setupDnsForwarder.log')
-
-var SetupNetForwarderArguments = union(map(NetForwards, item => '-f "${string(item)}"'), map(NetBlocks, item => '-b "${string(item)}"'))
-var SetupNetForwarderEnabled = (length(NetForwards) + length(NetBlocks)) > 0
-var SetupNetForwarderCommand = trim('./setupNetForwarder.sh -n "${vnet.id}" ${join(SetupNetForwarderArguments, ' ')} | tee ./setupNetForwarder.log')
 
 var GatewayInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
 var GatewayInitScriptNames = [ 'initMachine.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh', 'setupWireGuard.sh' ]
 
 var GatewayInitCommand = join(filter([
   './initMachine.sh'
-  SetupDnsForwarderEnabled ? SetupDnsForwarderCommand : ''
-  SetupNetForwarderEnabled ? SetupNetForwarderCommand : ''
+  './setupDnsForwarder.sh -n \'${virtualNetwork.id}\' -f \'168.63.129.16\' -f \'${OrganizationGatewayIP}\''
+  './setupNetForwarder.sh -n \'${virtualNetwork.id}\' ${join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')}'
+  './setupWireGuard.sh -e \'${gatewayPIP.properties.ipAddress}\' ${join(map(virtualNetwork.properties.addressSpace.addressPrefixes, p => '-a \'${p}\''),' ')}'
 ], item => !empty(item)), ' && ')
 
 // ============================================================================================
 
-resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: ProjectDefinition.name
 }
 
-resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+resource defaultSubNetwork 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
   name: 'default'
-  parent: vnet
+  parent: virtualNetwork
 }
 
-resource pip 'Microsoft.Network/publicIPAddresses@2021-05-01' = {
+resource gatewayPIP 'Microsoft.Network/publicIPAddresses@2022-01-01' = {
   name: ResourceName
   location: OrganizationDefinition.location
   sku: {
-    name: 'Basic'
+    name: 'Standard'
   }
   properties: {
-    publicIPAllocationMethod: 'dynamic'
+    publicIPAllocationMethod: 'Static'
     publicIPAddressVersion: 'IPv4'
-    dnsSettings: {
-      domainNameLabel: 'gw-${guid(resourceGroup().id)}'
-    }
-    idleTimeoutInMinutes: 4
   }
 }
 
-resource nic 'Microsoft.Network/networkInterfaces@2021-05-01' = {
-  name: ResourceName
-  location: OrganizationDefinition.location
-  properties: {
-    ipConfigurations: [
-      {
-        name: 'default'
-        properties: {
-          subnet: {
-            id: snet.id
-          }
-          privateIPAddress: GatewayIP
-          privateIPAllocationMethod: 'Static'
-          publicIPAddress: {
-            id: pip.id
-          }
-        }
-      }
-    ]
-    networkSecurityGroup: {
-      id: nsg.id
-    }
-    enableIPForwarding: true
-  }
-}
-
-resource nsg 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
+resource gatewayNSG 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
   name: ResourceName
   location: OrganizationDefinition.location
   properties: {
@@ -102,13 +59,52 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
           protocol: 'Tcp'
           access: 'Allow'
           direction: 'Inbound'
-          sourceAddressPrefix: '*'
+          sourceAddressPrefix: OrganizationDefinition.network.ipRange
           sourcePortRange: '*'
           destinationAddressPrefix: '*'
           destinationPortRange: '22'
         }
       }
+      {
+        name: 'Gateway'
+        properties: {
+          priority: 1010
+          protocol: 'Udp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '51820'
+        }
+      }
     ]
+  }
+}
+
+resource gatewayNIC 'Microsoft.Network/networkInterfaces@2021-05-01' = {
+  name: ResourceName
+  location: OrganizationDefinition.location
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'default'
+        properties: {
+          subnet: {
+            id: defaultSubNetwork.id
+          }
+          privateIPAddress: GatewayIP
+          privateIPAllocationMethod: 'Static'
+          publicIPAddress: {
+            id: gatewayPIP.id
+          }
+        }
+      }
+    ]
+    networkSecurityGroup: {
+      id: gatewayNSG.id
+    }
+    enableIPForwarding: true
   }
 }
 
@@ -156,14 +152,14 @@ resource gateway 'Microsoft.Compute/virtualMachines@2021-11-01' = {
     networkProfile: {
       networkInterfaces: [
         {
-          id: nic.id
+          id: gatewayNIC.id
         }
       ]
     }
     osProfile: {
-      computerName: ResourceName
-      adminUsername: ProjectDefinition.gateway.username
-      adminPassword: ProjectDefinition.gateway.password
+      computerName: 'gateway'
+      adminUsername: GatewayDefinition.username
+      adminPassword: GatewayDefinition.password
     }
   }
 }
@@ -172,43 +168,22 @@ resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022
   name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 }
 
-resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
-  name: guid(vnet.id, gateway.id, contributorRoleDefinition.id)
+resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(virtualNetwork.id, gateway.id, contributorRoleDefinition.id)
   properties: {
-    roleDefinitionId: contributorRoleDefinition.id
     principalId: gateway.identity.principalId
+    roleDefinitionId: contributorRoleDefinition.id
     principalType: 'ServicePrincipal'
   }
 }
 
-// resource gatewayDiag 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
-//   name: 'Diag'
-//   location: OrganizationDefinition.location
-//   parent: gateway
-//   dependsOn: [
-//     contributorRoleAssignment
-//   ]
-//   properties: {
-//     publisher: 'Microsoft.EnterpriseCloud.Monitoring'
-//     type: 'MicrosoftMonitoringAgent'
-//     typeHandlerVersion: '1.0'
-//     autoUpgradeMinorVersion: true
-//     settings: {
-//         workspaceId: OrganizationInfo.WorkspaceId
-//     }
-//     protectedSettings: {
-//         workspaceKey: listKeys(OrganizationInfo.WorkspaceId, '2022-10-01').primarySharedKey
-//     }
-//   }
-// }
-
 resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
   name: 'Init'
   location: OrganizationDefinition.location
-  parent: gateway
   dependsOn: [
     contributorRoleAssignment
   ]
+  parent: gateway
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'
@@ -224,4 +199,4 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
 
 // ============================================================================================
 
-output GatewayIP string = nic.properties.ipConfigurations[0].properties.privateIPAddress
+output GatewayIP string = gatewayNIC.properties.ipConfigurations[0].properties.privateIPAddress

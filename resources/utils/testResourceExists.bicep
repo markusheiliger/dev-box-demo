@@ -54,7 +54,13 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
     forceUpdateTag: OperationId
     azCliVersion: '2.40.0'
     timeout: 'PT30M'
-    scriptContent: 'az config set extension.use_dynamic_install=yes_without_prompt; result=$(az resource show --ids \'${ResourceId}\' 2> /dev/null); jq -c --null-input --argjson exists $(if [ -z "$result" ]; then echo false; else echo true; fi) \'{ exists: $exists }\' > $AZ_SCRIPTS_OUTPUT_PATH'
+    environmentVariables: [
+      {
+        name: 'ResourceId'
+        value: ResourceId
+      }
+    ]
+    scriptContent: loadTextContent('testResourceExists.sh')
     cleanupPreference: 'Always'
     retentionInterval: 'PT1H'
     // retentionInterval: 'P1D'
@@ -64,4 +70,8 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
 // ============================================================================================
 
 output ResourceId string = ResourceId
-output ResourceExists bool = deploymentScript.properties.outputs.exists
+output ResourceExists bool = deploymentScript.properties.outputs.resourceExists
+output ResourceProperties object = deploymentScript.properties.outputs.resourceProperties
+output ResourceTags object = deploymentScript.properties.outputs.resourceTags
+
+

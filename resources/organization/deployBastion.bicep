@@ -1,17 +1,13 @@
-
 targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-@description('The organization defintion to process')
 param OrganizationDefinition object
-
-param WorkspaceId string = ''
+param OrganizationWorkspaceId string
 
 // ============================================================================================
 
 var BastionSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'AzureBastionSubnet'))
-var BastionResourceName = '${OrganizationDefinition.name}-BH'
 
 // ============================================================================================
 
@@ -25,7 +21,7 @@ resource bastionSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' ex
 }
 
 resource bastionPIP 'Microsoft.Network/publicIPAddresses@2022-01-01' = {
-  name: BastionResourceName
+  name: '${OrganizationDefinition.name}-BH'
   location: OrganizationDefinition.location
   sku: {
     name: 'Standard'
@@ -37,7 +33,7 @@ resource bastionPIP 'Microsoft.Network/publicIPAddresses@2022-01-01' = {
 }
 
 resource bastion 'Microsoft.Network/bastionHosts@2022-07-01' = {
-  name: BastionResourceName
+  name: '${OrganizationDefinition.name}-BH'
   location: OrganizationDefinition.location
   sku: {
     name: 'Basic'
@@ -60,11 +56,11 @@ resource bastion 'Microsoft.Network/bastionHosts@2022-07-01' = {
   }
 }
 
-resource bastionDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(WorkspaceId)) {
+resource bastionDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: bastion.name
   scope: bastion
   properties: {
-    workspaceId: WorkspaceId
+    workspaceId: OrganizationWorkspaceId
     logs: [
       {
         categoryGroup: 'allLogs'

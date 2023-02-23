@@ -6,7 +6,9 @@ param HubNetworkId string
 
 param SpokeNetworkIds array
 
-param UpdateHubNetworkIPGroups bool = false
+param PeeringPrefix string = ''
+
+param UpdateIPGroups bool = false
 
 param OperationId string = newGuid()
 
@@ -23,7 +25,7 @@ module peerHub2Spoke 'peerNetwork.bicep' = [for i in range(0, length(SpokeNetwor
   params: {
     LocalVirtualNetworkName: hubNetwork.name
     RemoteVirtualNetworkId: SpokeNetworkIds[i]
-    WaitUntilSucceeded: UpdateHubNetworkIPGroups
+    PeeringPrefix: empty(PeeringPrefix) ? 'spoke' : PeeringPrefix
   }
 }]
 
@@ -38,11 +40,11 @@ module peerSpoke2Hub 'peerNetwork.bicep' = [for i in range(0, length(SpokeNetwor
   params: {
     LocalVirtualNetworkName: spokeNetwork[i].name
     RemoteVirtualNetworkId: HubNetworkId
-    WaitUntilSucceeded: UpdateHubNetworkIPGroups
+    PeeringPrefix: empty(PeeringPrefix) ? 'hub' : PeeringPrefix
   }
 }]
 
-module updateIPGroups 'updateIPGroups.bicep' = if (UpdateHubNetworkIPGroups) {
+module updateIPGroups 'deployIPGroups.bicep' = if (UpdateIPGroups) {
   name: '${take(deployment().name, 36)}_${uniqueString('updateIPGroups', HubNetworkId, OperationId)}'
   scope: resourceGroup(split(HubNetworkId, '/')[2], split(HubNetworkId, '/')[4])
   dependsOn: [
@@ -50,7 +52,6 @@ module updateIPGroups 'updateIPGroups.bicep' = if (UpdateHubNetworkIPGroups) {
     peerSpoke2Hub
   ]
   params: {
-    VNetName: any(last(split(HubNetworkId, '/')))
-    PeeredOnly: true
+    VNetName: hubNetwork.name
   }
 }

@@ -2,13 +2,9 @@ targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-@description('The organization defintion to process')
 param OrganizationDefinition object
-
-@description('The Windows 365 principal id')
 param Windows365PrinicalId string
-
-param WorkspaceId string = ''
+param WorkspaceId string
 
 // ============================================================================================
 
@@ -28,7 +24,7 @@ resource readerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-0
   name: 'acdd72a7-3385-48ef-bd42-f606fba81ae7' // https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#reader
 }
 
-resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
+resource devCenter 'Microsoft.DevCenter/devcenters@2022-11-11-preview' = {
   name: OrganizationDefinition.name
   location: OrganizationDefinition.location
   identity: {
@@ -36,7 +32,7 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2022-10-12-preview' = {
   }
 }
 
-resource devCenterDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(WorkspaceId)) {
+resource devCenterDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: devCenter.name
   scope: devCenter
   properties: {
@@ -63,7 +59,7 @@ resource devCenterDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-
   }
 }
 
-resource devBox 'Microsoft.DevCenter/devcenters/devboxdefinitions@2022-10-12-preview' = [for DevBox in DevBoxes: {
+resource devBox 'Microsoft.DevCenter/devcenters/devboxdefinitions@2022-11-11-preview' = [for DevBox in DevBoxes: {
   name: DevBox.name
   location: OrganizationDefinition.location
   parent: devCenter
@@ -108,7 +104,7 @@ resource galleryReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@20
   }
 }
 
-resource attachGallery 'Microsoft.DevCenter/devcenters/galleries@2022-10-12-preview' = {
+resource attachGallery 'Microsoft.DevCenter/devcenters/galleries@2022-11-11-preview' = {
   name: gallery.name
   parent: devCenter
   dependsOn: [
@@ -160,7 +156,7 @@ resource vaultSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = [for (Cata
   }
 }]
 
-resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-10-12-preview' = [for (Catalog, CatalogIndex) in CatalogsGitHub : {
+resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-11-11-preview' = [for (Catalog, CatalogIndex) in CatalogsGitHub : {
   name: '${Catalog.name}'
   parent: devCenter
   properties: {
@@ -173,7 +169,7 @@ resource catalogGitHub 'Microsoft.DevCenter/devcenters/catalogs@2022-10-12-previ
   }
 }]
 
-resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-10-12-preview' = [for (Catalog, CatalogIndex) in CatalogsAdoGit : {
+resource catalogAdoGit 'Microsoft.DevCenter/devcenters/catalogs@2022-11-11-preview' = [for (Catalog, CatalogIndex) in CatalogsAdoGit : {
   name: '${Catalog.name}'
   parent: devCenter
   properties: {

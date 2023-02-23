@@ -3,10 +3,8 @@ targetScope = 'resourceGroup'
 // ============================================================================================
 
 param OrganizationDefinition object
-
-param OrganizationInfo object
-
 param ProjectDefinition object
+param DevCenterId string
 
 // ============================================================================================
 
@@ -29,11 +27,11 @@ resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = 
   parent: vnet
 }
 
-resource project 'Microsoft.DevCenter/projects@2022-10-12-preview' = {
+resource project 'Microsoft.DevCenter/projects@2022-11-11-preview' = {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location
   properties: {
-    devCenterId: OrganizationInfo.DevCenterId
+    devCenterId: DevCenterId
   }
 }
 
@@ -79,7 +77,7 @@ resource deploymentEnvironmentUserRoleAssignment 'Microsoft.Authorization/roleAs
   }
 }] 
 
-resource networkConnection 'Microsoft.DevCenter/networkConnections@2022-10-12-preview' = {
+resource networkConnection 'Microsoft.DevCenter/networkConnections@2022-11-11-preview' = {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location
   properties: {
@@ -90,15 +88,15 @@ resource networkConnection 'Microsoft.DevCenter/networkConnections@2022-10-12-pr
 }
 
 module attachNetworkConnection '../utils/attachNetworkConnection.bicep' = {
-  name: '${take(deployment().name, 36)}_attachNetworkConnection'
-  scope: resourceGroup(OrganizationInfo.SubscriptionId, OrganizationInfo.ResourceGroupName)
+  name: '${take(deployment().name, 36)}_${uniqueString(networkConnection.id)}'
+  scope: resourceGroup(split(DevCenterId, '/')[2], split(DevCenterId, '/')[4])
   params: {
-    DevCenterName: any(last(split(OrganizationInfo.DevCenterId, '/')))
+    DevCenterName: any(last(split(DevCenterId, '/')))
     NetworkConnectionId: networkConnection.id
   }
 }
 
-resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-10-12-preview' = [for DevBox in DevBoxes: {
+resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-11-11-preview' = [for DevBox in DevBoxes: {
   name: '${DevBox.name}Pool'
   location: OrganizationDefinition.Location
   parent: project

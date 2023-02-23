@@ -6,13 +6,11 @@ param VNetName string
 param SNetName string
 
 param Username string = 'godfather'
-
-@secure()
-param Password string = newGuid()
+param Password string = 'T00ManySecrets'
 
 // ============================================================================================
 
-var ResourceName = take('TH-${toUpper(uniqueString(snet.id))}', 15)
+var ResourceName = '${VNetName}-TH'
 
 #disable-next-line no-loc-expr-outside-params
 var ResourceLocation = resourceGroup().location
@@ -34,7 +32,7 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-05-01' = {
   properties: {
     ipConfigurations: [
       {
-        name: 'ipconfig1'
+        name: 'default'
         properties: {
           subnet: {
             id: snet.id
@@ -57,7 +55,7 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
       {
         name: 'SSH'
         properties: {
-          priority: 1000
+          priority: 100
           protocol: 'Tcp'
           access: 'Allow'
           direction: 'Inbound'
@@ -106,7 +104,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2021-11-01' = {
       ]
     }
     osProfile: {
-      computerName: toLower(ResourceName)
+      computerName: 'testhost'
       adminUsername: Username
       adminPassword: Password
     }

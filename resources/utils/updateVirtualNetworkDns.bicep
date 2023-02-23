@@ -4,8 +4,6 @@ targetScope = 'resourceGroup'
 
 param VNetName string 
 
-param RoutesName string
-
 param DnsServers array
 
 // ============================================================================================
@@ -19,10 +17,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: VNetName
 }
 
-resource routes 'Microsoft.Network/routeTables@2022-07-01' existing = {
-  name: RoutesName
-} 
-
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = {
   name: '${vnet.name}-DNS'
   location: ResourceLocation
@@ -34,7 +28,6 @@ resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022
 
 resource contributorRoleAssignmentVnet 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(vnet.id, contributorRoleDefinition.id, identity.id)
-  scope: vnet
   properties: {
     principalId: identity.properties.principalId
     principalType: 'ServicePrincipal'
@@ -42,22 +35,21 @@ resource contributorRoleAssignmentVnet 'Microsoft.Authorization/roleAssignments@
   }
 }
 
-resource contributorRoleAssignmentRoutes 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(routes.id, contributorRoleDefinition.id, identity.id)
-  scope: routes
-  properties: {
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: contributorRoleDefinition.id    
-  }
-}
+// module  assignRole2RouteTables 'assignRole2RouteTables.bicep' = {
+//   name: '${take(deployment().name, 36)}_${uniqueString('assignRole2RouteTables', VNetName, string(DnsServers))}'
+//   params: {
+//     ResourceIds: map(filter(vnet.properties.subnets, snet => contains(snet.properties, 'routeTable')), snet => snet.properties.routeTable.id)
+//     PrincipalId: identity.properties.principalId
+//     RoleDefinitionName: contributorRoleDefinition.name
+//   }
+// }
 
 resource setDnsServers 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   name: '${vnet.name}-DNS'
   location: ResourceLocation
   dependsOn: [
     contributorRoleAssignmentVnet
-    contributorRoleAssignmentRoutes
+    // assignRole2RouteTables
   ]
   kind: 'AzureCLI'
   identity: {

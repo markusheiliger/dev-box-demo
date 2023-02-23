@@ -29,19 +29,17 @@ cancelDeployments() {
 	for DEPLOYMENTNAME  in $(az deployment sub list --subscription $SUBSCRIPTIONID --query '[?properties.provisioningState==`InProgress`].name' -o tsv | dos2unix); do
 		echo "$SUBSCRIPTIONID - Canceling deployment '$DEPLOYMENTNAME' ..."
 		az deployment sub cancel --subscription $SUBSCRIPTIONID --name $DEPLOYMENTNAME -o none &
-	done
+	done; wait
 
 	# on resource group level
 	# ------------------------------------------------------------------------------
 
-	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query '[?properties.provisioningState==`Succeeded`].name' -o tsv | dos2unix); do
+	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query '[].name' -o tsv | dos2unix); do
 		for DEPLOYMENTNAME  in $(az deployment group list --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --query '[?properties.provisioningState==`InProgress`].name' -o tsv | dos2unix); do
 			echo "$SUBSCRIPTIONID - Canceling deployment '$DEPLOYMENTNAME' in resource group '$RESOURCEGROUP' ..."
 			az deployment group cancel --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --name $DEPLOYMENTNAME -o none &
 		done
-	done
-
-	wait # ... until all deployments canceled
+	done; wait
 }
 
 purgeResources() {
@@ -61,12 +59,12 @@ purgeResources() {
 	# purge subscription scoped resources
 	# ------------------------------------------------------------------------------
 
-	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
+	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --resource-type vault --query '[].name' -o tsv 2>/dev/null | dos2unix); do
 		echo "$SUBSCRIPTIONID - Purging deleted key vault '$KEYVAULT' ..." 
 		az keyvault purge --subscription $SUBSCRIPTIONID --name $KEYVAULT -o none & 
 	done
 
-	for APPCONFIG in $(az appconfig list-deleted --subscription $SUBSCRIPTIONID --query [].name -o tsv 2>/dev/null | dos2unix); do
+	for APPCONFIG in $(az appconfig list-deleted --subscription $SUBSCRIPTIONID --query '[].name' -o tsv 2>/dev/null | dos2unix); do
 		echo "$SUBSCRIPTIONID - Purging deleted app configuration '$APPCONFIG' ..." 
 		az appconfig purge --subscription $SUBSCRIPTIONID --name $APPCONFIG --yes -o none &
 	done
@@ -91,7 +89,7 @@ resetSubscription() {
 	# delete resources
 	# ------------------------------------------------------------------------------
 
-	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query '[?properties.provisioningState==`Succeeded`].name' -o tsv | dos2unix); do
+	for RESOURCEGROUP in $(az group list --subscription $SUBSCRIPTIONID --query '[].name' -o tsv | dos2unix); do
 		if [ $(az resource list --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --query '[] | length(@)' -o tsv) -gt 0 ]; then
 			echo "$SUBSCRIPTIONID - Deleting resources in '$RESOURCEGROUP' ..."
 			az deployment group create --mode Complete --subscription $SUBSCRIPTIONID --resource-group $RESOURCEGROUP --name $"$(uuidgen)" --template-uri https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/100-blank-template/azuredeploy.json -o none &
@@ -127,6 +125,7 @@ resetSubscription() {
 		az role definition delete --name $DEFINITIONNAME --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID -o none &
 	done; wait
 
+	echo "Finished reset of subscription $SUBSCRIPTIONID"
 }
 
 PROJECTS=()
@@ -175,30 +174,33 @@ if [ "$RESET" = 'true' ]; then
 	echo '... done'
 fi
 
-displayHeader "Resolve principals"
-for PROJECT in "${PROJECTS[@]}"; do
-	UPN=$(grep -Eom1 "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" $PROJECT)
-	while [ ! -z "$UPN" ]; do
-		echo "Resolving UPN '$UPN' ..."
-		OID=$(az ad user show --id $UPN --query id -o tsv | dos2unix)
-		[ -z "$OID" ] && exit 1
-		echo "Replacing UPN '$UPN' with OID '$OID'..."
-		sed -i "s/$UPN/$OID/" $PROJECT
-		UPN=$(grep -Eom1 "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" $PROJECT)
-	done
-done
-echo '... done'
-
 displayHeader "Merge projects"
 PROJECTSFILE="$(dirname $ORGANIZATION)/projects.json"
 echo "Target file: $PROJECTSFILE"
 jq -s . "${PROJECTS[@]}" > $PROJECTSFILE
+
+displayHeader "Resolve principals"
+UPN=$(grep -Eom1 "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" $PROJECTSFILE)
+while [ ! -z "$UPN" ]; do
+	echo "Resolving UPN '$UPN' ..."
+	OID=$(az ad user show --id $UPN --query id -o tsv | dos2unix)
+	[ -z "$OID" ] && exit 1
+	echo "Replacing UPN '$UPN' with OID '$OID'..."
+	sed -i "s/$UPN/$OID/" $PROJECTSFILE
+	UPN=$(grep -Eom1 "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" $PROJECTSFILE)
+done
+echo '... done'
+
+displayHeader "Transpile template"
+az bicep build --file ./resources/main.bicep --stdout > ./deploy.json
+echo "Target file: ./deploy.json"
 
 displayHeader "Run deployment"
 az deployment sub create \
 	--name $(uuidgen) \
 	--location $(jq --raw-output .location $ORGANIZATION) \
 	--template-file ./resources/main.bicep \
+	--only-show-errors \
 	--parameters \
 		OrganizationDefinition=@$ORGANIZATION \
 		ProjectDefinitions=@$PROJECTSFILE \

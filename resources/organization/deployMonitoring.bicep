@@ -1,9 +1,7 @@
-
 targetScope = 'resourceGroup'
 
 // ============================================================================================
 
-@description('The organization defintion to process')
 param OrganizationDefinition object
 
 // ============================================================================================
