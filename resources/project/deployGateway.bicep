@@ -22,6 +22,7 @@ var GatewayInitCommand = join(filter([
   './setupDnsForwarder.sh -n \'${virtualNetwork.id}\' -f \'168.63.129.16\' -f \'${OrganizationGatewayIP}\''
   './setupNetForwarder.sh -n \'${virtualNetwork.id}\' ${join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')}'
   './setupWireGuard.sh -e \'${gatewayPIP.properties.ipAddress}\''
+  'sudo shutdown -r now'
 ], item => !empty(item)), ' && ')
 
 // ============================================================================================
