@@ -76,7 +76,6 @@ options {
 	allow-query { goodclients; };
 	forwarders {
 		$FORWARDS_FULL_VALUE
-		168.63.129.16;
 	};
 	forward only;
 	dnssec-validation no; 	# needed for private dns zones

@@ -38,7 +38,7 @@ EOF
 for PEER_INDEX in {01..10}; do
 
 	PEER_PRIVATEKEY=$(wg genkey | sudo tee /etc/wireguard/peer$PEER_INDEX-privatekey)
-	PEER_PUBLICKEY=$(echo $PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/peer$PEER_INDEX-publickey)
+	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/peer$PEER_INDEX-publickey)
 
 echo "Append WireGuard server configuration (PEER #$PEER_INDEX) ..." && sudo tee -a /etc/wireguard/wg0.conf <<EOF
 
@@ -63,6 +63,6 @@ EOF
 
 done
 
-# enable WireGuard service
+# enable and start WireGuard service
 sudo systemctl enable wg-quick@wg0.service
-sudo systemctl daemon-reload
+sudo systemctl start wg-quick@wg0.service

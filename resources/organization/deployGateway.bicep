@@ -269,7 +269,7 @@ resource defaultSubNetRouteGateway 'Microsoft.Network/routeTables/routes@2022-07
   parent: defaultSubNetRoutes
   properties: {
     nextHopType: 'VirtualAppliance'
-    nextHopIpAddress: deployFirewall.outputs.FirewallPrivateIP
+    nextHopIpAddress: InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : null
     addressPrefix: '0.0.0.0/0'
   }
 }
@@ -280,12 +280,16 @@ module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = if (In
     VNetName: virtualNetwork.name
     DnsServers: [
       '168.63.129.16'
-      deployFirewall.outputs.FirewallPrivateIP
+      InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : null
     ]
   }
 }
 
+resource firewall 'Microsoft.Network/azureFirewalls@2022-07-01' existing = {
+  name: '${OrganizationDefinition.name}-FW'
+}
+
 // ============================================================================================
 
-output GatewayIP string = InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : resourceId('Microsoft.Network/azureFirewalls', '${OrganizationDefinition.name}-FW')
+output GatewayIP string = InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : firewall.properties.ipConfigurations[0].properties.privateIPAddress
 
