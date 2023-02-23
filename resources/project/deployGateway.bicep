@@ -21,7 +21,7 @@ var GatewayInitCommand = join(filter([
   './initMachine.sh'
   './setupDnsForwarder.sh -n \'${virtualNetwork.id}\' -f \'168.63.129.16\' -f \'${OrganizationGatewayIP}\''
   './setupNetForwarder.sh -n \'${virtualNetwork.id}\' ${join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')}'
-  './setupWireGuard.sh -e \'${gatewayPIP.properties.ipAddress}\' ${join(map(virtualNetwork.properties.addressSpace.addressPrefixes, p => '-a \'${p}\''),' ')}'
+  './setupWireGuard.sh -e \'${gatewayPIP.properties.ipAddress}\''
 ], item => !empty(item)), ' && ')
 
 // ============================================================================================
