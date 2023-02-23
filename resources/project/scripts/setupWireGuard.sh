@@ -24,7 +24,7 @@ SERVER_PRIVATEIP=$(ip addr show eth0 | grep "inet\b" | awk '{print $2}')
 SERVER_PORT=51820
 SERVER_ENDPOINT="$ENDPOINT:$SERVER_PORT"
 SERVER_PRIVATEKEY=$(wg genkey | sudo tee /etc/wireguard/server-privatekey)
-SERVER_PUBLICKEY=$(echo $PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/server-publickey)
+SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/server-publickey)
 
 echo "Creating WireGuard server configuration ..." && sudo tee /etc/wireguard/wg0.conf <<EOF
 
