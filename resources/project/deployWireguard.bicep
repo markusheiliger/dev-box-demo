@@ -19,7 +19,7 @@ var WireguardInitScriptNames = [ 'initMachine.sh', 'setupWireGuard.sh' ]
 var WireguardInitCommand = join(filter([
   './initMachine.sh'
   './setupWireGuard.sh -e \'${wireguardPIP.properties.ipAddress}\' -r \'${WireguardDefinition.ipRange}\' -p 1 -a \'${vnet.properties.addressSpace}\''
-  // 'sudo shutdown -r 1'
+  'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 
 // ============================================================================================

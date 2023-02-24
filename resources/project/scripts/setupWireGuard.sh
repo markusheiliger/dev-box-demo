@@ -22,7 +22,7 @@ done
 ALLOWEDIPS+=("$IPRANGE")
 
 # install required packages
-sudo apt-get install -y wireguard coreutils nmap
+sudo apt-get install -y wireguard coreutils nmap iptables
 
 # enable IP forwarding
 sudo sed -i -e 's/#net.ipv4.ip_forward.*/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
@@ -50,12 +50,12 @@ ListenPort = $SERVER_PORT
 
 EOF
 
-if [ $PEERSCOUNT < 1]; then
+if [ $PEERSCOUNT -lt 1 ]; then
 	$PEERSCOUNT=1 # define the min value
 fi
 
-if [ $PEERSCOUNT > (${#IPADDRESSES[@]}-1) ]; then
-	$PEERSCOUNT=$(${#IPADDRESSES[@]}-1) # define the max value
+if [ $PEERSCOUNT -gt $((${#IPADDRESSES[@]}-1)) ]; then
+	$PEERSCOUNT=$((${#IPADDRESSES[@]}-1)) # define the max value
 fi
 
 for (( i=1; i<($PEERSCOUNT+1); i++)); do
@@ -63,7 +63,7 @@ for (( i=1; i<($PEERSCOUNT+1); i++)); do
 	PEER_INDEX=$(printf "%03d" $i)
 	PEER_PRIVATEKEY=$(wg genkey | sudo tee /etc/wireguard/peer$PEER_INDEX-privatekey)
 	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/peer$PEER_INDEX-publickey)
-	PEER_ALLOWEDIPS=$(printf '%s, ' "${ALLOWEDIPS[@]}")
+	PEER_ALLOWEDIPS=$(printf '%s, ' "${ALLOWEDIPS[@]}" | sed 's/[ ,]*$//g')
 
 echo "Append WireGuard server configuration (PEER #$PEER_INDEX) ..." && sudo tee -a /etc/wireguard/wg0.conf <<EOF
 
@@ -76,19 +76,19 @@ EOF
 echo "Creating WireGuard peer configuration (PEER #$PEER_INDEX) ..." && sudo tee /etc/wireguard/wg0-peer$PEER_INDEX.conf <<EOF
 
 [Interface]
-Address = ${IPADDRESSES[i]}
+Address = ${IPADDRESSES[i]}/32
 PrivateKey = $PEER_PRIVATEKEY
 
 [Peer]
 PublicKey = $SERVER_PUBLICKEY
 Endpoint = $SERVER_ENDPOINT
 AllowedIPs = $PEER_ALLOWEDIPS
-PersistentKeepalive = 25
+PersistentKeepalive = 20
 
 EOF
 
 done
 
 # enable and start WireGuard service
-# sudo systemctl enable wg-quick@wg0.service
-# sudo systemctl start wg-quick@wg0.service
+sudo systemctl enable wg-quick@wg0.service
+sudo systemctl start wg-quick@wg0.service
