@@ -22,7 +22,7 @@ done
 ALLOWEDIPS+=("$IPRANGE")
 
 # install required packages
-sudo apt-get install -y wireguard coreutils nmap iptables
+sudo apt-get install -y coreutils iptables wireguard nmap 
 
 # enable IP forwarding
 sudo sed -i -e 's/#net.ipv4.ip_forward.*/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
@@ -106,5 +106,5 @@ EOF
 done
 
 # enable and start WireGuard service
-sudo systemctl enable wg-quick@wg0.service
-sudo systemctl start wg-quick@wg0.service
+# sudo systemctl enable wg-quick@wg0.service
+# sudo systemctl start wg-quick@wg0.service
