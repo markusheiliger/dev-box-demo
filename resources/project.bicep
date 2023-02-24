@@ -48,6 +48,18 @@ module deployGateway 'project/deployGateway.bicep' = {
   }
 }
 
+module deployWireguard 'project/deployWireguard.bicep' = if(!empty(filter(ProjectDefinition.network.subnets, snet => toLower(snet.name) == 'wireguard'))) {
+  name: '${take(deployment().name, 36)}_deployWireguard'
+  scope: resourceGroup
+  dependsOn: [
+    deployNetwork
+  ]
+  params: {
+    OrganizationDefinition: OrganizationDefinition
+    ProjectDefinition: ProjectDefinition
+  }
+}
+
 module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Features.TestHost) {
   name: '${take(deployment().name, 36)}_deployTestHost'
   scope: resourceGroup
@@ -55,8 +67,8 @@ module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Featu
     deployGateway
   ]
   params: {
-    SNetName: deployNetwork.outputs.DefaultSNetName
     VNetName: deployNetwork.outputs.VNetName
+    SNetName: filter(deployNetwork.outputs.SNets, net => toLower(net.name) == 'default')[0].name
   }
 }
 

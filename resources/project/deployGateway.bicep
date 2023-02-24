@@ -15,14 +15,13 @@ var GatewayIPSegments = split(split(defaultSubNetwork.properties.addressPrefix, 
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(any(last(GatewayIPSegments)))+4}'
 
 var GatewayInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
-var GatewayInitScriptNames = [ 'initMachine.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh', 'setupWireGuard.sh' ]
+var GatewayInitScriptNames = [ 'initMachine.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh' ]
 
 var GatewayInitCommand = join(filter([
   './initMachine.sh'
   './setupDnsForwarder.sh -n \'${virtualNetwork.id}\' -f \'168.63.129.16\' -f \'${OrganizationGatewayIP}\''
   './setupNetForwarder.sh -n \'${virtualNetwork.id}\' ${join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')}'
-  './setupWireGuard.sh -e \'${gatewayPIP.properties.ipAddress}\''
-  'sudo shutdown -r now'
+  'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 
 // ============================================================================================
@@ -64,19 +63,6 @@ resource gatewayNSG 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
           sourcePortRange: '*'
           destinationAddressPrefix: '*'
           destinationPortRange: '22'
-        }
-      }
-      {
-        name: 'Gateway'
-        properties: {
-          priority: 1010
-          protocol: 'Udp'
-          access: 'Allow'
-          direction: 'Inbound'
-          sourceAddressPrefix: '*'
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '51820'
         }
       }
     ]

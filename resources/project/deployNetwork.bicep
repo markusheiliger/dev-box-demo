@@ -10,7 +10,7 @@ param InitialDeployment bool = false
 
 // ============================================================================================
 
-var DefaultSubnetDefinition = first(filter(ProjectDefinition.network.subnets, subnet => subnet.name == 'default'))
+// var DefaultSubnetDefinition = first(filter(ProjectDefinition.network.subnets, subnet => subnet.name == 'default'))
 
 var SubNetRoutes = map(filter(ProjectDefinition.network.subnets, net => !startsWith(net.name, 'Azure')), net => '${ProjectDefinition.name}-RT-${net.name}')
 
@@ -62,11 +62,6 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing 
   name: ProjectDefinition.name
 }
 
-resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: DefaultSubnetDefinition.name
-  parent: virtualNetwork
-}
-
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: toLower('${ProjectDefinition.name}.${OrganizationDefinition.zone}')
   location: 'global'
@@ -100,7 +95,6 @@ resource dnsZoneLinkOrganization 'Microsoft.Network/privateDnsZones/virtualNetwo
 
 output VNetId string = virtualNetwork.id
 output VNetName string = virtualNetwork.name
-output DefaultSNetId string = defaultSubNet.id
-output DefaultSNetName string = defaultSubNet.name
+output SNets array = [ for subnet in ProjectDefinition.network.subnets: { id: resourceId('Microsoft.Network/virtualNetworks/subnets', ProjectDefinition.name, subnet.name), name: subnet.name }]
 output DnsZoneId string = dnsZone.id
 output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes
