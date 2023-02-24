@@ -16,9 +16,16 @@ var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(Wire
 var WireguardInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
 var WireguardInitScriptNames = [ 'initMachine.sh', 'setupWireGuard.sh' ]
 
+var WireguardArguments = join([
+  '-e \'${wireguardPIP.properties.ipAddress}\''                                               // Endpoint
+  '-r \'${WireguardDefinition.ipRange}\''                                                     // IPRange
+  '-p 2'                                                                                      // PeerCount
+  join(map(vnet.properties.addressSpace.addressPrefixes, cidr => '-a \'${cidr}\''), ' ')      // AllowedIPs
+], ' ')
+
 var WireguardInitCommand = join(filter([
   './initMachine.sh'
-  './setupWireGuard.sh -e \'${wireguardPIP.properties.ipAddress}\' -r \'${WireguardDefinition.ipRange}\' -p 1 -a \'${vnet.properties.addressSpace}\''
+  './setupWireGuard.sh ${WireguardArguments}'
   'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 
