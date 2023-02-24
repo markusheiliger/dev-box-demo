@@ -10,17 +10,17 @@ param ProjectDefinition object
 var ResourceName = '${ProjectDefinition.name}-WG'
 
 var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
-var WireguardIPSegments = split(split(snet.properties.addressPrefix, '/')[0],'.')
+var WireguardIPSegments = split(split(snet.properties.addressPrefix, '/')[0], '.')
 var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+4}'
 
 var WireguardInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
 var WireguardInitScriptNames = [ 'initMachine.sh', 'setupWireGuard.sh' ]
 
 var WireguardArguments = join([
-  '-e \'${wireguardPIP.properties.ipAddress}\''                                               // Endpoint
-  '-r \'${WireguardDefinition.ipRange}\''                                                     // IPRange
-  '-p 2'                                                                                      // PeerCount
-  join(map(vnet.properties.addressSpace.addressPrefixes, cidr => '-a \'${cidr}\''), ' ')      // AllowedIPs
+  '-e \'${wireguardPIP.properties.ipAddress}\''                                           // Endpoint
+  '-r \'${WireguardDefinition.ipRange}\''                                                 // IPRange
+  join(map(vnet.properties.addressSpace.addressPrefixes, cidr => '-a \'${cidr}\''), ' ')  // AllowedIPs
+  join(map(WireguardDefinition.islands, island => '-i \'${island.ipRange}\''), ' ')       // IslandIPs  
 ], ' ')
 
 var WireguardInitCommand = join(filter([

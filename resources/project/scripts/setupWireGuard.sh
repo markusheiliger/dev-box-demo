@@ -2,19 +2,19 @@
 
 ENDPOINT=''
 IPRANGE='192.168.0.0/24'
-PEERSCOUNT=1
 ALLOWEDIPS=()
+ISLANDIPS=()
 
-while getopts 'e:r:p:a:' OPT; do
+while getopts 'e:r:a:i:' OPT; do
     case "$OPT" in
 		e)
 			ENDPOINT="${OPTARG}" ;;
 		r)
 			IPRANGE="${OPTARG}" ;;
-		p)
-			PEERSCOUNT=$(("${OPTARG}")) ;;
 		a)
 			ALLOWEDIPS+=("${OPTARG}") ;;
+		i)
+			ISLANDIPS+=("${OPTARG}") ;;
     esac
 done
 
@@ -50,15 +50,31 @@ ListenPort = $SERVER_PORT
 
 EOF
 
-if [ $PEERSCOUNT -lt 1 ]; then
-	$PEERSCOUNT=1 # define the min value
-fi
+ISLANDCOUNT=$((${#ISLANDIPS[@]}))
 
-if [ $PEERSCOUNT -gt $((${#IPADDRESSES[@]}-1)) ]; then
-	$PEERSCOUNT=$((${#IPADDRESSES[@]}-1)) # define the max value
-fi
+for (( i=1; i<=$ISLANDCOUNT; i++)); do
+	echo "PostUp = iptables -A FORWARD -i %i -d ${ISLANDIPS[i]} -j ACCEPT" | sudo tee -a /etc/wireguard/wg0.conf
+done
 
-for (( i=1; i<($PEERSCOUNT+1); i++)); do
+sudo tee -a /etc/wireguard/wg0.conf <<EOF
+
+PostUp = iptables -A FORWARD -i %i -j DROP
+PostUp = iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+EOF
+
+for (( i=1; i<=$ISLANDCOUNT; i++)); do
+	echo "PostDown = iptables -D FORWARD -i %i -d ${ISLANDIPS[i]} -j ACCEPT" | sudo tee -a /etc/wireguard/wg0.conf
+done
+
+sudo tee -a /etc/wireguard/wg0.conf <<EOF
+
+PostDown = iptables -D FORWARD -i %i -j DROP
+PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+EOF
+
+for (( i=1 ; i<=$ISLANDCOUNT ; i++ )); do
 
 	PEER_INDEX=$(printf "%03d" $i)
 	PEER_PRIVATEKEY=$(wg genkey | sudo tee /etc/wireguard/peer$PEER_INDEX-privatekey)
