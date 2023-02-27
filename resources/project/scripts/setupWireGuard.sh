@@ -42,7 +42,7 @@ SERVER_PRIVATEKEY=$(wg genkey | sudo tee /etc/wireguard/server-privatekey)
 SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/server-publickey)
 
 ISLANDCOUNT=$((${#ISLANDIPS[@]}))
-ALLOWEDIPSCOUNT$((${#ALLOWEDIPS[@]}))
+ALLOWEDIPSCOUNT=$((${#ALLOWEDIPS[@]}))
 
 # ===========================================================================================
 # HELPER FUNCTIONS
