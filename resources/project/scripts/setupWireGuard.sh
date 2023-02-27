@@ -121,4 +121,5 @@ done
 
 # enable and start WireGuard service
 # sudo systemctl enable wg-quick@wg0.service
+# sudo systemctl daemon-reload
 # sudo systemctl start wg-quick@wg0.service
