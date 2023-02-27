@@ -59,6 +59,8 @@ appendPostUp() {
 	# forward all traffic between wireguard / ethernet interface and vice versa
 	echo "PostUp = iptables -I FORWARD 1 -i eth0 -o %i -j ACCEPT" | sudo tee -a $1
 	echo "PostUp = iptables -I FORWARD 1 -i %i -o eth0 -j ACCEPT" | sudo tee -a $1
+
+	echo # this is just some eye candy >> easier to read output
 }
 
 appendPostDown() {
@@ -72,6 +74,8 @@ appendPostDown() {
 	# DELETE - forward all traffic between wireguard / ethernet interface and vice versa
 	echo "PostDown = iptables -D FORWARD -i eth0 -o %i -j ACCEPT" | sudo tee -a $1
 	echo "PostDown = iptables -D FORWARD -i %i -o eth0 -j ACCEPT" | sudo tee -a $1
+
+	echo # this is just some eye candy >> easier to read output
 }
 
 # ===========================================================================================
