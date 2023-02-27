@@ -25,7 +25,7 @@ var WireguardArguments = join([
 
 var WireguardInitCommand = join(filter([
   './initMachine.sh'
-  './setupWireGuard.sh ${WireguardArguments}'
+  // './setupWireGuard.sh ${WireguardArguments}'
   'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 
@@ -182,13 +182,23 @@ resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
+resource wireguardTags 'Microsoft.Resources/tags@2022-09-01' = {
+  name: 'default'
+  scope: wireguard
+  properties: {
+    tags: {
+      WireguardArguments: WireguardArguments
+    }
+  }
+}
+
 resource wireguardInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
   name: 'Init'
   location: OrganizationDefinition.location
+  parent: wireguard
   dependsOn: [
     contributorRoleAssignment
   ]
-  parent: wireguard
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'

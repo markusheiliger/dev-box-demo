@@ -19,7 +19,7 @@ while getopts 'e:r:a:i:' OPT; do
 done
 
 # IPRANGE must be part of ALLOWEDIPS
-ALLOWEDIPS+=("$IPRANGE")
+# ALLOWEDIPS+=("$IPRANGE")
 
 # install required packages
 sudo apt-get install -y coreutils iptables wireguard nmap 
@@ -41,6 +41,41 @@ SERVER_ENDPOINT="$ENDPOINT:$SERVER_PORT"
 SERVER_PRIVATEKEY=$(wg genkey | sudo tee /etc/wireguard/server-privatekey)
 SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey | sudo tee /etc/wireguard/server-publickey)
 
+ISLANDCOUNT=$((${#ISLANDIPS[@]}))
+ALLOWEDIPSCOUNT$((${#ALLOWEDIPS[@]}))
+
+# ===========================================================================================
+# HELPER FUNCTIONS
+# ===========================================================================================
+
+appendPostUp() {
+
+	# only do NAT if source address created by WireGuard wg0 interface 
+	echo "PostUp = iptables -t nat -I POSTROUTING 1 -s $IPRANGE -o eth0 -j MASQUERADE" | sudo tee -a $1
+
+	# accept all traffic created by wireguard interface
+	echo "PostUp = iptables -I INPUT 1 -i %i -j ACCEPT" | sudo tee -a $1
+
+	# forward all traffic between wireguard / ethernet interface and vice versa
+	echo "PostUp = iptables -I FORWARD 1 -i eth0 -o %i -j ACCEPT" | sudo tee -a $1
+	echo "PostUp = iptables -I FORWARD 1 -i %i -o eth0 -j ACCEPT" | sudo tee -a $1
+}
+
+appendPostDown() {
+	
+	# DELETE - only do NAT if source address created by WireGuard wg0 interface 
+	echo "PostDown = iptables -t nat -D POSTROUTING -s $IPRANGE -o eth0 -j MASQUERADE" | sudo tee -a $1
+
+	# DELETE - accept all traffic created by wireguard interface
+	echo "PostDown = iptables -D INPUT -i %i -j ACCEPT" | sudo tee -a $1
+
+	# DELETE - forward all traffic between wireguard / ethernet interface and vice versa
+	echo "PostDown = iptables -D FORWARD -i eth0 -o %i -j ACCEPT" | sudo tee -a $1
+	echo "PostDown = iptables -D FORWARD -i %i -o eth0 -j ACCEPT" | sudo tee -a $1
+}
+
+# ===========================================================================================
+
 echo "Creating WireGuard server configuration ..." && sudo tee /etc/wireguard/wg0.conf <<EOF
 
 [Interface]
@@ -50,29 +85,8 @@ ListenPort = $SERVER_PORT
 
 EOF
 
-ISLANDCOUNT=$((${#ISLANDIPS[@]}))
-
-for (( i=1; i<=$ISLANDCOUNT; i++)); do
-	echo "PostUp = iptables -A FORWARD -i %i -d ${ISLANDIPS[i]} -j ACCEPT" | sudo tee -a /etc/wireguard/wg0.conf
-done
-
-sudo tee -a /etc/wireguard/wg0.conf <<EOF
-
-PostUp = iptables -A FORWARD -i %i -j DROP
-PostUp = iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-
-EOF
-
-for (( i=1; i<=$ISLANDCOUNT; i++)); do
-	echo "PostDown = iptables -D FORWARD -i %i -d ${ISLANDIPS[i]} -j ACCEPT" | sudo tee -a /etc/wireguard/wg0.conf
-done
-
-sudo tee -a /etc/wireguard/wg0.conf <<EOF
-
-PostDown = iptables -D FORWARD -i %i -j DROP
-PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-
-EOF
+appendPostUp /etc/wireguard/wg0.conf
+appendPostDown /etc/wireguard/wg0.conf
 
 for (( i=1 ; i<=$ISLANDCOUNT ; i++ )); do
 

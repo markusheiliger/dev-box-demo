@@ -8,8 +8,6 @@ param ResourceName string
 
 param OperationId string = newGuid()
 
-param OperationIsolated bool = false
-
 // ============================================================================================
 
 #disable-next-line no-loc-expr-outside-params
@@ -38,7 +36,7 @@ resource readerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-0
 
 resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   #disable-next-line use-stable-resource-identifiers
-  name: 'ResourceExists-${guid(ResourceId, OperationIsolated ? OperationId : '')}'
+  name: 'ResourceExists-${guid(ResourceId, OperationId)}'
   location: ResourceLocation
   identity: {
     type: 'UserAssigned'

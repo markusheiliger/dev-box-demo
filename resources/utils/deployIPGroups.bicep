@@ -24,7 +24,6 @@ module ipGroupLocalExists 'testResourceExists.bicep' = {
   params: {
     ResourceName: '${ResourcePrefix}-LOCAL'
     ResourceType: 'Microsoft.Network/ipGroups'
-    OperationIsolated: true
   }
 }
 
@@ -42,7 +41,6 @@ module ipGroupPeeredExists 'testResourceExists.bicep' = [for suffix in IPGroupSu
   params: {
     ResourceName: '${ResourcePrefix}-LOCAL'
     ResourceType: 'Microsoft.Network/ipGroups'
-    OperationIsolated: true 
   }
 }]
 
