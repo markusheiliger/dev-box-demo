@@ -29,6 +29,49 @@ var WireguardInitCommand = join(filter([
   'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 
+var WireguardInboundStatic = [
+  {
+    name: 'SSH'
+    properties: {
+      priority: 1000
+      protocol: 'Tcp'
+      access: 'Allow'
+      direction: 'Inbound'
+      sourceAddressPrefix: OrganizationDefinition.network.ipRange
+      sourcePortRange: '*'
+      destinationAddressPrefix: '*'
+      destinationPortRange: '22'
+    }
+  }
+  {
+    name: 'Wireguard-Tunnel'
+    properties: {
+      priority: 2000
+      protocol: 'Udp'
+      access: 'Allow'
+      direction: 'Inbound'
+      sourceAddressPrefix: 'Internet'
+      sourcePortRange: '*'
+      destinationAddressPrefix: '*'
+      destinationPortRange: '51820'
+    }
+  }
+]
+
+var WireguardInboundIslands = [for i in range(1, length(WireguardDefinition.islands)): {
+  name: 'Wireguard-Island${i}'
+  properties: {
+    priority: (2000 + i)
+    protocol: 'Udp'
+    access: 'Allow'
+    direction: 'Inbound'
+    sourceAddressPrefix: 'VirtualNetwork'
+    sourcePortRange: '*'
+    destinationAddressPrefix: WireguardDefinition.islands[i-1].ipRange
+    destinationPortRange: '*'
+  }
+}]
+
 // ============================================================================================
 
 resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
@@ -39,6 +82,20 @@ resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = 
   name: 'wireguard'
   parent: vnet
 }
+
+resource routes 'Microsoft.Network/routeTables@2022-07-01' existing = {
+  name: '${ProjectDefinition.name}-RT-${snet.name}'
+}
+
+resource route 'Microsoft.Network/routeTables/routes@2022-07-01' = [for (IslandDefintion, IslandIndex) in WireguardDefinition.islands : {
+  name: 'Island${IslandIndex + 1}'
+  parent: routes
+  properties: {
+    addressPrefix: IslandDefintion.ipRange
+    nextHopType: 'VirtualAppliance'
+    nextHopIpAddress: wireguardNIC.properties.ipConfigurations[0].properties.privateIPAddress
+  }
+}]
 
 resource wireguardPIP 'Microsoft.Network/publicIPAddresses@2022-01-01' = {
   name: ResourceName
@@ -56,34 +113,7 @@ resource wireguardNSG 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
   name: ResourceName
   location: OrganizationDefinition.location
   properties: {
-    securityRules: [
-      {
-        name: 'SSH'
-        properties: {
-          priority: 1000
-          protocol: 'Tcp'
-          access: 'Allow'
-          direction: 'Inbound'
-          sourceAddressPrefix: OrganizationDefinition.network.ipRange
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '22'
-        }
-      }
-      {
-        name: 'Wireguard'
-        properties: {
-          priority: 1010
-          protocol: 'Udp'
-          access: 'Allow'
-          direction: 'Inbound'
-          sourceAddressPrefix: '*'
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '51820'
-        }
-      }
-    ]
+    securityRules: concat(WireguardInboundStatic, WireguardInboundIslands)
   }
 }
 
