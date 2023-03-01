@@ -10,17 +10,17 @@ param ProjectDefinition object
 var ResourceName = '${ProjectDefinition.name}-WG'
 
 var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
-var WireguardIPSegments = split(split(snet.properties.addressPrefix, '/')[0], '.')
+var WireguardIPSegments = split(split(wireguardSnet.properties.addressPrefix, '/')[0], '.')
 var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+4}'
 
 var WireguardInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
 var WireguardInitScriptNames = [ 'initMachine.sh', 'setupWireGuard.sh' ]
 
 var WireguardArguments = join([
-  '-e \'${wireguardPIP.properties.ipAddress}\''                                           // Endpoint
-  '-r \'${WireguardDefinition.ipRange}\''                                                 // IPRange
-  join(map(vnet.properties.addressSpace.addressPrefixes, cidr => '-a \'${cidr}\''), ' ')  // AllowedIPs
-  join(map(WireguardDefinition.islands, island => '-i \'${island.ipRange}\''), ' ')       // IslandIPs  
+  '-e \'${wireguardPIP.properties.ipAddress}\''                                           // Endpoint (the Wireguard public endpoint)
+  '-h \'${ProjectDefinition.network.ipRange}\''                                           // Home Range (the Project's IPRange)
+  '-v \'${WireguardDefinition.ipRange}\''                                                 // Virtual Range (internal Wireguard IPRange)
+  join(map(WireguardDefinition.islands, island => '-i \'${island.ipRange}\''), ' ')       // Island Ranges (list of Island IPRanges)
 ], ' ')
 
 var WireguardInitCommand = join(filter([
@@ -62,7 +62,7 @@ var WireguardInboundIslands = [for i in range(1, length(WireguardDefinition.isla
   name: 'Wireguard-Island${i}'
   properties: {
     priority: (2000 + i)
-    protocol: 'Udp'
+    protocol: '*'
     access: 'Allow'
     direction: 'Inbound'
     sourceAddressPrefix: 'VirtualNetwork'
@@ -78,18 +78,23 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: ProjectDefinition.name
 }
 
-resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+resource wireguardSnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
   name: 'wireguard'
   parent: vnet
 }
 
-resource routes 'Microsoft.Network/routeTables@2022-07-01' existing = {
-  name: '${ProjectDefinition.name}-RT-${snet.name}'
+resource defaultSnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+  name: 'default'
+  parent: vnet
 }
 
-resource route 'Microsoft.Network/routeTables/routes@2022-07-01' = [for (IslandDefintion, IslandIndex) in WireguardDefinition.islands : {
+resource defaultRoutes 'Microsoft.Network/routeTables@2022-07-01' existing = {
+  name: '${ProjectDefinition.name}-RT-${defaultSnet.name}'
+}
+
+resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = [for (IslandDefintion, IslandIndex) in WireguardDefinition.islands : {
   name: 'Island${IslandIndex + 1}'
-  parent: routes
+  parent: defaultRoutes
   properties: {
     addressPrefix: IslandDefintion.ipRange
     nextHopType: 'VirtualAppliance'
@@ -126,7 +131,7 @@ resource wireguardNIC 'Microsoft.Network/networkInterfaces@2021-05-01' = {
         name: 'default'
         properties: {
           subnet: {
-            id: snet.id
+            id: wireguardSnet.id
           }
           privateIPAddress: WireguardIP
           privateIPAllocationMethod: 'Static'
