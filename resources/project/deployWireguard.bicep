@@ -25,7 +25,7 @@ var WireguardArguments = join([
 
 var WireguardInitCommand = join(filter([
   './initMachine.sh'
-  // './setupWireGuard.sh ${WireguardArguments}'
+  './setupWireGuard.sh ${WireguardArguments}'
   'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 

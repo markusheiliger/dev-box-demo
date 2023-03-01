@@ -30,18 +30,21 @@ sudo sysctl -p
 # CAUTION: leave the outer parenthesis where they are to get the result as array
 VRANGEIPS=($(nmap -sL -n $VRANGE | awk '/Nmap scan report/{print $NF}'))
 
+# default wireguard port for the server endpoint 
+# todo: update server endpoint if not specified by arg
+DEFAULT_PORT=51820
+
 SERVER_PATH='/etc/wireguard'
 sudo rm -rf $SERVER_PATH/*
 
-SERVER_PORT=51820
-SERVER_ENDPOINT="$ENDPOINT:$SERVER_PORT"
+SERVER_ENDPOINT="$ENDPOINT:$DEFAULT_PORT"
 SERVER_PRIVATEKEY=$(wg genkey | sudo tee $SERVER_PATH/privateKey)
 SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey | sudo tee $SERVER_PATH/publicKey)
 
 echo "Creating WireGuard server configuration ..." && sudo tee $SERVER_PATH/wg0.conf <<EOF
 
 [Interface]
-Address = ${VRANGEIPS[0]}
+Address = ${VRANGEIPS[1]}
 PrivateKey = $SERVER_PRIVATEKEY
 ListenPort = $SERVER_PORT
 
@@ -57,10 +60,11 @@ IRANGESCOUNT=$((${#IRANGES[@]}))
 
 for (( i=0 ; i<$IRANGESCOUNT ; i++ )); do
 
+	PEER_INDEX=$(printf "%03d" $(($i + 1)))
 	PEER_PATH="$SERVER_PATH/island-$PEER_INDEX"
+
 	sudo mkdir $PEER_PATH
 	
-	PEER_INDEX=$(printf "%03d" $(($i + 1)))
 	PEER_PRIVATEKEY=$(wg genkey | sudo tee $PEER_PATH/privateKey)
 	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey | sudo tee $PEER_PATH/publicKey)
 
@@ -76,7 +80,7 @@ EOF
 echo "Creating WireGuard peer configuration (ISLAND #$PEER_INDEX) ..." && sudo tee $PEER_PATH/wg0.conf <<EOF
 
 [Interface]
-Address = ${VRANGEIPS[(i+1)]}/32
+Address = ${VRANGEIPS[(i+2)]}/32
 PrivateKey = $PEER_PRIVATEKEY
 
 PostUp = iptables -I FORWARD 1 -i %i -j ACCEPT
