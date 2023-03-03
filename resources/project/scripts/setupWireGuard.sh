@@ -34,8 +34,8 @@ VRANGEIPS=($(nmap -sL -n $VRANGE | awk '/Nmap scan report/{print $NF}'))
 SERVER_PATH='/etc/wireguard'
 sudo rm -rf $SERVER_PATH/*
 
-SERVER_HOST=$(echo $SERVER_ENDPOINT | cut -d ':' -f1)
-SERVER_PORT=$(echo $SERVER_ENDPOINT | cut -d ':' -f2)
+SERVER_HOST=$(echo $ENDPOINT | cut -d ':' -f1)
+SERVER_PORT=$(echo $ENDPOINT | cut -d ':' -f2)
 
 if [ "$SERVER_HOST" -eq "$SERVER_PORT" ]; then
 	# fallback to default wireguard port
