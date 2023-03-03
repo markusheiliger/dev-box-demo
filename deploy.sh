@@ -82,8 +82,18 @@ resetSubscription() {
 	# ------------------------------------------------------------------------------
 
 	for POOLID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects/pools' --query [].id -o tsv | dos2unix); do
-		echo "$SUBSCRIPTIONID - Deleting devbox pool '$POOLID' ..." \
-		az resource show --ids $POOLID > /dev/null 2>&1 az devcenter admin pool wait --ids $POOLID --created --only-show-errors &
+		echo "$SUBSCRIPTIONID - Deleting devbox pool '$POOLID' ..." 
+		az devcenter admin pool delete --ids $POOLID --yes --only-show-errors &
+	done; wait 
+
+	for PROJECTID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects' --query [].id -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Deleting dev project '$PROJECTID' ..." 
+		az devcenter admin project delete --ids $PROJECTID --yes --only-show-errors &
+	done; wait 
+
+	for DEVCENTERID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/devcenters' --query [].id -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Deleting dev center '$DEVCENTERID' ..." 
+		az devcenter admin devcenter delete --ids $DEVCENTERID --yes --only-show-errors &
 	done; wait 
 
 	# delete resources

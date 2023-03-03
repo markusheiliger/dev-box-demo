@@ -12,12 +12,13 @@ var ResourceName = '${ProjectDefinition.name}-WG'
 var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
 var WireguardIPSegments = split(split(wireguardSnet.properties.addressPrefix, '/')[0], '.')
 var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+4}'
+var WireguardPort = 51820
 
 var WireguardInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
 var WireguardInitScriptNames = [ 'initMachine.sh', 'setupWireGuard.sh' ]
 
 var WireguardArguments = join([
-  '-e \'${wireguardPIP.properties.ipAddress}\''                                           // Endpoint (the Wireguard public endpoint)
+  '-e \'${wireguardPIP.properties.ipAddress}:${WireguardPort}\''                          // Endpoint (the Wireguard public endpoint)
   '-h \'${ProjectDefinition.network.ipRange}\''                                           // Home Range (the Project's IPRange)
   '-v \'${WireguardDefinition.ipRange}\''                                                 // Virtual Range (internal Wireguard IPRange)
   join(map(WireguardDefinition.islands, island => '-i \'${island.ipRange}\''), ' ')       // Island Ranges (list of Island IPRanges)
@@ -53,7 +54,7 @@ var WireguardInboundStatic = [
       sourceAddressPrefix: 'Internet'
       sourcePortRange: '*'
       destinationAddressPrefix: '*'
-      destinationPortRange: '51820'
+      destinationPortRange: '${WireguardPort}'
     }
   }
 ]

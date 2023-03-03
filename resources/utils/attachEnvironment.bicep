@@ -21,7 +21,7 @@ resource project 'Microsoft.DevCenter/projects@2022-11-11-preview' existing = {
   name: ProjectName
 }
 
-resource deploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' ={
+resource deploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = {
   name: '${ProjectName}-${EnvironmentName}'
   location: ResourceLocation
 }
@@ -51,8 +51,16 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-11-11-p
   }
   tags: EnvironmentTags
   properties: {
-    deploymentTargetId: EnvironmentSubscription
+    deploymentTargetId: startsWith(EnvironmentSubscription, '/') ? EnvironmentSubscription : '/subscriptions/${EnvironmentSubscription}'
     status: 'Enabled'
+  }
+}
+
+module attachEnvironmentDeployer 'attachEnvironmentDeployer.bicep' = {
+  name: '${take(deployment().name, 36)}_${uniqueString(deploymentIdentity.id)}'
+  scope: subscription(EnvironmentSubscription)
+  params: {
+    DeploymentPrincipalId: deploymentIdentity.properties.principalId
   }
 }
 

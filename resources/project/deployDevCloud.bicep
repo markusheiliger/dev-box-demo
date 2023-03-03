@@ -96,6 +96,15 @@ module attachNetworkConnection '../utils/attachNetworkConnection.bicep' = {
   }
 }
 
+module attachEnvironment '../utils/attachEnvironment.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString(string(EnvironmentDefinition))}'
+  params: {
+    ProjectName: project.name
+    EnvironmentName: EnvironmentDefinition.name
+    EnvironmentSubscription: EnvironmentDefinition.subscription
+  }  
+}]
+
 resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-11-11-preview' = [for DevBox in DevBoxes: {
   name: '${DevBox.name}Pool'
   location: OrganizationDefinition.Location

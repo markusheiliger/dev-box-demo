@@ -30,14 +30,20 @@ sudo sysctl -p
 # CAUTION: leave the outer parenthesis where they are to get the result as array
 VRANGEIPS=($(nmap -sL -n $VRANGE | awk '/Nmap scan report/{print $NF}'))
 
-# default wireguard port for the server endpoint 
-# todo: update server endpoint if not specified by arg
-DEFAULT_PORT=51820
 
 SERVER_PATH='/etc/wireguard'
 sudo rm -rf $SERVER_PATH/*
 
-SERVER_ENDPOINT="$ENDPOINT:$DEFAULT_PORT"
+SERVER_HOST=$(echo $SERVER_ENDPOINT | cut -d ':' -f1)
+SERVER_PORT=$(echo $SERVER_ENDPOINT | cut -d ':' -f2)
+
+if [ "$SERVER_HOST" -eq "$SERVER_PORT" ]; then
+	# fallback to default wireguard port
+	# if no port number was provided by
+	# the script's endpoint argument
+	SERVER_PORT='51820'
+fi
+
 SERVER_PRIVATEKEY=$(wg genkey | sudo tee $SERVER_PATH/privateKey)
 SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey | sudo tee $SERVER_PATH/publicKey)
 
@@ -91,7 +97,7 @@ PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 
 [Peer]
 PublicKey = $SERVER_PUBLICKEY
-Endpoint = $SERVER_ENDPOINT
+Endpoint = $SERVER_HOST:$SERVER_PORT
 AllowedIPs = $VRANGE, $HRANGE
 PersistentKeepalive = 20
 
