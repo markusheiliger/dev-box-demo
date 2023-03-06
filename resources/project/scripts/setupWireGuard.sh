@@ -54,12 +54,6 @@ Address = ${VRANGEIPS[1]}
 PrivateKey = $SERVER_PRIVATEKEY
 ListenPort = $SERVER_PORT
 
-PostUp = iptables -I FORWARD 1 -i %i -j ACCEPT
-PostUp = iptables -t nat -I POSTROUTING 1 -o eth0 -j MASQUERADE
-
-PostDown = iptables -D FORWARD -i %i -j ACCEPT
-PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-
 EOF
 
 IRANGESCOUNT=$((${#IRANGES[@]}))
@@ -78,7 +72,7 @@ echo "Append WireGuard server configuration (ISLAND #$PEER_INDEX) ..." && sudo t
 
 [Peer]
 PublicKey = $PEER_PUBLICKEY
-AllowedIPs = $VRANGE, ${IRANGES[i]}
+AllowedIPs = $HRANGE, $VRANGE, ${IRANGES[i]}
 PersistentKeepalive = 20
 
 EOF
@@ -89,16 +83,10 @@ echo "Creating WireGuard peer configuration (ISLAND #$PEER_INDEX) ..." && sudo t
 Address = ${VRANGEIPS[(i+2)]}/32
 PrivateKey = $PEER_PRIVATEKEY
 
-PostUp = iptables -I FORWARD 1 -i %i -j ACCEPT
-PostUp = iptables -t nat -I POSTROUTING 1 -o eth0 -j MASQUERADE
-
-PostDown = iptables -D FORWARD -i %i -j ACCEPT
-PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-
 [Peer]
 PublicKey = $SERVER_PUBLICKEY
 Endpoint = $SERVER_HOST:$SERVER_PORT
-AllowedIPs = $VRANGE, $HRANGE
+AllowedIPs = $HRANGE, $VRANGE, ${IRANGES[i]}
 PersistentKeepalive = 20
 
 EOF

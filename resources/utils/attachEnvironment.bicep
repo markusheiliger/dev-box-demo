@@ -56,14 +56,6 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-11-11-p
   }
 }
 
-module attachEnvironmentDeployer 'attachEnvironmentDeployer.bicep' = {
-  name: '${take(deployment().name, 36)}_${uniqueString(deploymentIdentity.id)}'
-  scope: subscription(EnvironmentSubscription)
-  params: {
-    DeploymentPrincipalId: deploymentIdentity.properties.principalId
-  }
-}
-
 // ============================================================================================
 
 output DeploymentIdentityPrincipalId string = deploymentIdentity.properties.principalId
