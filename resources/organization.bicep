@@ -7,6 +7,10 @@ param ProjectDefinitions array
 param DeploymentContext object
 
 // ============================================================================================
+
+var EnvironmentSubscriptions = union([],flatten(map(ProjectDefinitions, prj => map(prj.environments, env => env.subscription))))
+
+// ============================================================================================
 //
 // DEPLOY ORGANIZATION
 //
@@ -133,6 +137,14 @@ module deployDevCenter 'organization/deployDevCloud.bicep'= {
     WorkspaceId: deployMonitoring.outputs.WorkspaceId
   }
 }
+
+module attachEnvironmentSubscription './utils/attachEnvironmentSubscription.bicep' = [for EnvironmentSubscription in EnvironmentSubscriptions: {
+  name: '${take(deployment().name, 36)}_${uniqueString('attachEnvironmentSubscription', EnvironmentSubscription)}'
+  scope: subscription(EnvironmentSubscription)
+  params: {
+    DevCenterId: deployDevCenter.outputs.DevCenterId
+  }  
+}]
 
 module deployDevProject 'project/deployDevCloud.bicep' = [for ProjectDefinition in ProjectDefinitions: {
   name:'${take(deployment().name, 36)}_deployDevCloud'

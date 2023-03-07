@@ -100,16 +100,9 @@ module attachEnvironmentType '../utils/attachEnvironmentType.bicep' = [for Envir
   name: '${take(deployment().name, 36)}_${uniqueString('attachEnvironmentType', string(EnvironmentDefinition))}'
   params: {
     ProjectName: project.name
+    ProjectUsers: ProjectDefinition.users
     EnvironmentName: EnvironmentDefinition.name
     EnvironmentSubscription: EnvironmentDefinition.subscription
-  }  
-}]
-
-module attachEnvironmentSubscription '../utils/attachEnvironmentSubscription.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
-  name: '${take(deployment().name, 36)}_${uniqueString('attachEnvironmentSubscription', string(EnvironmentDefinition))}'
-  scope: subscription(EnvironmentDefinition.subscription)
-  params: {
-    DevCenterId: DevCenterId
   }  
 }]
 

@@ -4,6 +4,8 @@ targetScope = 'resourceGroup'
 
 param ProjectName string
 
+param ProjectUsers array
+
 param EnvironmentName string
 
 param EnvironmentSubscription string
@@ -14,6 +16,25 @@ param EnvironmentTags object = {}
 
 #disable-next-line no-loc-expr-outside-params
 var ResourceLocation = resourceGroup().location
+
+var RoleDefinitionId = {
+  Contributor: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+  Reader: 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
+}
+
+var creatorRoleAssignment = {
+  roles: {
+    '${RoleDefinitionId.Contributor}': {}
+  }
+}
+
+var userRoleAssignments = map(ProjectUsers, usr => {
+  '${usr}': {
+    roles: {
+      '${RoleDefinitionId.Reader}': {}
+    }
+  }
+})
 
 // ============================================================================================
 
@@ -53,6 +74,8 @@ resource environment 'Microsoft.DevCenter/projects/environmentTypes@2022-11-11-p
   properties: {
     deploymentTargetId: startsWith(EnvironmentSubscription, '/') ? EnvironmentSubscription : '/subscriptions/${EnvironmentSubscription}'
     status: 'Enabled'
+    creatorRoleAssignment: creatorRoleAssignment
+    userRoleAssignments: reduce(userRoleAssignments, {}, (cur, next) => union(cur, next))
   }
 }
 
