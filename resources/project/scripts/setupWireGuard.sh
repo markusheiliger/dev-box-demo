@@ -67,12 +67,14 @@ for (( i=0 ; i<$IRANGESCOUNT ; i++ )); do
 	
 	PEER_PRIVATEKEY=$(wg genkey | sudo tee $PEER_PATH/privateKey)
 	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey | sudo tee $PEER_PATH/publicKey)
+	PEER_PRESHAREDKEY=$(wg genpsk  | sudo tee $PEER_PATH/presharedKey)
 
 echo "Append WireGuard server configuration (ISLAND #$PEER_INDEX) ..." && sudo tee -a $SERVER_PATH/wg0.conf <<EOF
 
 [Peer]
 PublicKey = $PEER_PUBLICKEY
-AllowedIPs = $HRANGE, $VRANGE, ${IRANGES[i]}
+PresharedKey = $PEER_PRESHAREDKEY
+AllowedIPs = $VRANGE, ${IRANGES[i]}
 PersistentKeepalive = 20
 
 EOF
@@ -85,8 +87,9 @@ PrivateKey = $PEER_PRIVATEKEY
 
 [Peer]
 PublicKey = $SERVER_PUBLICKEY
+PresharedKey = $PEER_PRESHAREDKEY
 Endpoint = $SERVER_HOST:$SERVER_PORT
-AllowedIPs = $HRANGE, $VRANGE, ${IRANGES[i]}
+AllowedIPs = $HRANGE, $VRANGE
 PersistentKeepalive = 20
 
 EOF
