@@ -10,20 +10,7 @@ param DockerImage string = 'mcr.microsoft.com/appsvc/staticsite:latest'
 var ResourceLocation = resourceGroup().location
 var ResourcePrefix = uniqueString(resourceGroup().id)
 
-var EnvironmentNetworkIdSegments = split(resourceGroup().tags.EnvironmentNetworkId, '/')
-
 // ============================================================================================
-
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-05-01' existing = {
-  name: last(EnvironmentNetworkIdSegments)
-  scope: resourceGroup(EnvironmentNetworkIdSegments[2], EnvironmentNetworkIdSegments[4])
-}
-
-
-resource defaultSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-05-01' existing = {
-  name : 'default'
-  parent: virtualNetwork
-}
 
 resource webServer 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: '${ResourcePrefix}-SRV'

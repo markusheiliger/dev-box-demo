@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.13.1.58284",
-      "templateHash": "4650128522506819470"
+      "version": "0.14.85.62628",
+      "templateHash": "17007607417290336085"
     }
   },
   "parameters": {
@@ -13,7 +13,7 @@
       "type": "string"
     },
     "VmAdminPassword": {
-      "type": "secureString"
+      "type": "securestring"
     },
     "VmSize": {
       "type": "string",
@@ -105,8 +105,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.13.1.58284",
-              "templateHash": "1104302794504180248"
+              "version": "0.14.85.62628",
+              "templateHash": "15134218718608586232"
             }
           },
           "variables": {

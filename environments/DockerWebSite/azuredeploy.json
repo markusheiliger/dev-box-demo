@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.13.1.58284",
-      "templateHash": "12927761294600293731"
+      "version": "0.14.85.62628",
+      "templateHash": "12419634209322171423"
     }
   },
   "parameters": {
@@ -16,8 +16,7 @@
   },
   "variables": {
     "ResourceLocation": "[resourceGroup().location]",
-    "ResourcePrefix": "[uniqueString(resourceGroup().id)]",
-    "EnvironmentNetworkIdSegments": "[split(resourceGroup().tags.EnvironmentNetworkId, '/')]"
+    "ResourcePrefix": "[uniqueString(resourceGroup().id)]"
   },
   "resources": [
     {
