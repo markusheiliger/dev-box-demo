@@ -96,12 +96,20 @@ module attachNetworkConnection '../utils/attachNetworkConnection.bicep' = {
   }
 }
 
-module attachEnvironment '../utils/attachEnvironment.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
-  name: '${take(deployment().name, 36)}_${uniqueString(string(EnvironmentDefinition))}'
+module attachEnvironmentType '../utils/attachEnvironmentType.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString('attachEnvironmentType', string(EnvironmentDefinition))}'
   params: {
     ProjectName: project.name
     EnvironmentName: EnvironmentDefinition.name
     EnvironmentSubscription: EnvironmentDefinition.subscription
+  }  
+}]
+
+module attachEnvironmentSubscription '../utils/attachEnvironmentSubscription.bicep' = [for EnvironmentDefinition in ProjectDefinition.environments: {
+  name: '${take(deployment().name, 36)}_${uniqueString('attachEnvironmentSubscription', string(EnvironmentDefinition))}'
+  scope: subscription(EnvironmentDefinition.subscription)
+  params: {
+    DevCenterId: DevCenterId
   }  
 }]
 
