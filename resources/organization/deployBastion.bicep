@@ -7,16 +7,12 @@ param OrganizationWorkspaceId string
 
 // ============================================================================================
 
-var BastionSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'AzureBastionSubnet'))
-
-// ============================================================================================
-
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: OrganizationDefinition.name
 }
 
 resource bastionSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: BastionSubnetDefinition.name
+  name: 'AzureBastionSubnet'
   parent: virtualNetwork
 }
 

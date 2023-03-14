@@ -48,27 +48,40 @@ module deployGateway 'project/deployGateway.bicep' = {
   }
 }
 
-module deployWireguard 'project/deployWireguard.bicep' = if(!empty(filter(ProjectDefinition.network.subnets, snet => toLower(snet.name) == 'wireguard'))) {
-  name: '${take(deployment().name, 36)}_deployWireguard'
-  scope: resourceGroup
-  dependsOn: [
-    deployNetwork
-  ]
-  params: {
-    OrganizationDefinition: OrganizationDefinition
-    ProjectDefinition: ProjectDefinition
-  }
-}
+// module deployForwarder 'project/deployForwarder.bicep' = {
+//   name: '${take(deployment().name, 36)}_deployForwarder'
+//   scope: resourceGroup
+//   dependsOn: [
+//     deployNetwork
+//   ]
+//   params: {
+//     OrganizationDefinition: OrganizationDefinition
+//     OrganizationGatewayIP: OrganizationContext.GatewayIP
+//     ProjectDefinition: ProjectDefinition
+//   }
+// }
+
+// module deployWireguard 'project/deployWireguard.bicep' = {
+//   name: '${take(deployment().name, 36)}_deployWireguard'
+//   scope: resourceGroup
+//   dependsOn: [
+//     deployNetwork
+//   ]
+//   params: {
+//     OrganizationDefinition: OrganizationDefinition
+//     ProjectDefinition: ProjectDefinition
+//   }
+// }
 
 module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Features.TestHost) {
   name: '${take(deployment().name, 36)}_deployTestHost'
   scope: resourceGroup
   dependsOn: [
+    // deployForwarder
     deployGateway
   ]
   params: {
     VNetName: deployNetwork.outputs.VNetName
-    SNetName: filter(deployNetwork.outputs.SNets, net => toLower(net.name) == 'default')[0].name
   }
 }
 
@@ -86,6 +99,7 @@ module environments './environments.bicep' = {
     ProjectDefinition: ProjectDefinition
     ProjectContext:{
       NetworkId: deployNetwork.outputs.VNetId
+      // GatewayIP: deployForwarder.outputs.ForwarderIP
       GatewayIP: deployGateway.outputs.GatewayIP
     }
     DeploymentContext: DeploymentContext
@@ -96,6 +110,8 @@ module peerNetworks 'utils/peerNetworks.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString(deployment().name)}'
   params: {
     HubNetworkId: deployNetwork.outputs.VNetId
+    // HubGatewayIP: deployForwarder.outputs.ForwarderIP
+    HubGatewayIP: deployGateway.outputs.GatewayIP
     SpokeNetworkIds: map(environments.outputs.EnvironmentResults, ctx => ctx.NetworkId)
   }
 }
@@ -105,6 +121,7 @@ module peerNetworks 'utils/peerNetworks.bicep' = {
 output ProjectResult object = {
   ResourceGroupId: resourceGroup.id
   NetworkId: deployNetwork.outputs.VNetId
+  // GatewayIP: deployForwarder.outputs.ForwarderIP
   GatewayIP: deployGateway.outputs.GatewayIP
   EnvironmentResults: environments.outputs.EnvironmentResults
 }

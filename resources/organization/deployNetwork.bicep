@@ -7,55 +7,58 @@ param InitialDeployment bool = true
 
 // ============================================================================================
 
-var DefaultSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'default'))
-
-var SubNetRoutes = map(filter(OrganizationDefinition.network.subnets, net => net.routes), net => '${OrganizationDefinition.name}-RT-${net.name}')
-
-var SubNetConfigs = map(OrganizationDefinition.network.subnets, net => net.routes ? {
-    name: net.name
-    properties: {
-      addressPrefix: net.ipRange
-      routeTable: { id: resourceId('Microsoft.Network/routeTables', '${OrganizationDefinition.name}-RT-${net.name}') }
-      privateEndpointNetworkPolicies: 'Disabled'
-      privateLinkServiceNetworkPolicies: 'Enabled' 
-    }
-  } : {
-    name: net.name
-    properties: {
-      addressPrefix: net.ipRange
-    }
-  })
-
-// ============================================================================================
-
-resource routes 'Microsoft.Network/routeTables@2022-07-01' = [for name in SubNetRoutes : {
-  name: name
+resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
+  name: OrganizationDefinition.name
   location: OrganizationDefinition.location
-}]
+}
+
+module splitSubnets '../utils/splitSubnets.bicep' = if (InitialDeployment) {
+  name: '${take(deployment().name, 36)}_splitSubnets'
+  params: {
+    IPRange: OrganizationDefinition.ipRange
+    SubnetCount: 3
+  }
+}
 
 resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = if (InitialDeployment) {
   name: OrganizationDefinition.name
   location: OrganizationDefinition.location
-  dependsOn: [
-    routes
-  ]
   properties: {
     addressSpace: {
       addressPrefixes: [
-        OrganizationDefinition.network.ipRange  
+        OrganizationDefinition.ipRange  
       ]
     }  
-    subnets: SubNetConfigs
+    subnets: [
+      {
+        name: 'default'
+        properties: {
+          addressPrefix: splitSubnets.outputs.Subnets[0]
+          routeTable: { 
+            id: routes.id 
+          }
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Enabled' 
+        }
+      }
+      {
+        name: 'AzureFirewallSubnet'
+        properties: {
+          addressPrefix: splitSubnets.outputs.Subnets[1]
+        }
+      }
+      {
+        name: 'AzureBastionSubnet'
+        properties: {
+          addressPrefix: splitSubnets.outputs.Subnets[2]
+        }
+      }
+    ]
   }  
 }
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: OrganizationDefinition.name
-}
-
-resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: DefaultSubnetDefinition.name
-  parent: virtualNetwork
 }
 
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
@@ -64,7 +67,7 @@ resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 }
 
 resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  name: 'VNet-${guid(virtualNetwork.id)}'
+  name: 'VNet-${guid(vnet.id)}'
   parent: dnsZone
   location: 'global'
   dependsOn: [
@@ -73,17 +76,15 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
   properties: {
     registrationEnabled: true
     virtualNetwork: {
-      id: virtualNetwork.id
+      id: vnet.id
     }
   }
 }
 
 // ============================================================================================
 
-output VNetId string = virtualNetwork.id
-output VNetName string = virtualNetwork.name
-output DefaultSNetId string = defaultSubNet.id
-output DefaultSNetName string = defaultSubNet.name
+output VNetId string = vnet.id
+output VNetName string = vnet.name
 output DnsZoneId string = dnsZone.id
 output DnsZoneName string = dnsZone.name
-output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes
+output IpRanges array = vnet.properties.addressSpace.addressPrefixes

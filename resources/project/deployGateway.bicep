@@ -11,28 +11,96 @@ param ProjectDefinition object
 var ResourceName = '${ProjectDefinition.name}-GW'
 
 var GatewayDefinition = contains(ProjectDefinition, 'gateway') ? ProjectDefinition.gateway : {}
-var GatewayIPSegments = split(split(defaultSubNetwork.properties.addressPrefix, '/')[0],'.')
+var GatewayIPSegments = split(split(snet.properties.addressPrefix, '/')[0],'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(any(last(GatewayIPSegments)))+4}'
 
-var GatewayInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
-var GatewayInitScriptNames = [ 'initMachine.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh' ]
+var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
+// var WireguardIPSegments = split(split(snet.properties.addressPrefix, '/')[0], '.')
+// var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+5}'
+var WireguardPort = 51820
 
-var GatewayInitCommand = join(filter([
+
+var DnsForwarderArguments = join([
+  '-n \'${vnet.id}\''
+  '-f \'168.63.129.16\''
+  ' -f \'${OrganizationGatewayIP}\''
+], ' ')
+
+var NetForwarderArguments = join([
+  '-n \'${vnet.id}\''
+  // join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')
+  join(map(vnet.properties.virtualNetworkPeerings, peer => '-f \'${peer.properties.remoteAddressSpace}\''), ' ')
+], ' ')
+
+var WireguardArguments = join([
+  '-e \'${gatewayPIP.properties.ipAddress}:${WireguardPort}\''              // Endpoint (the Wireguard public endpoint)
+  '-h \'${ProjectDefinition.ipRange}\''                                     // Home Range (the Project's IPRange)
+  '-v \'${WireguardDefinition.ipRange}\''                                   // Virtual Range (internal Wireguard IPRange)
+  join(map(WireguardDefinition.islands, island => '-i \'${island}\''), ' ') // Island Ranges (list of Island IPRanges)
+], ' ')
+
+var InitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
+var InitScriptNames = [ 'initMachine.sh', 'setupDnsForwarder.sh', 'setupNetForwarder.sh', 'setupWireGuard.sh' ]
+var InitCommand = join(filter([
   './initMachine.sh'
-  './setupDnsForwarder.sh -n \'${virtualNetwork.id}\' -f \'168.63.129.16\' -f \'${OrganizationGatewayIP}\''
-  './setupNetForwarder.sh -n \'${virtualNetwork.id}\' ${join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')}'
+  './setupDnsForwarder.sh ${DnsForwarderArguments}'
+  './setupNetForwarder.sh ${NetForwarderArguments}'
+  './setupWireGuard.sh ${WireguardArguments}'
   'sudo shutdown -r 1'
 ], item => !empty(item)), ' && ')
 
+var DefaultRules = [
+  {
+    name: 'SSH'
+    properties: {
+      priority: 1000
+      protocol: 'Tcp'
+      access: 'Allow'
+      direction: 'Inbound'
+      sourceAddressPrefix: OrganizationDefinition.ipRange
+      sourcePortRange: '*'
+      destinationAddressPrefix: '*'
+      destinationPortRange: '22'
+    }
+  }
+  {
+    name: 'Wireguard-Tunnel'
+    properties: {
+      priority: 2000
+      protocol: 'Udp'
+      access: 'Allow'
+      direction: 'Inbound'
+      sourceAddressPrefix: 'Internet'
+      sourcePortRange: '*'
+      destinationAddressPrefix: '*'
+      destinationPortRange: '${WireguardPort}'
+    }
+  }
+]
+
+var IslandRules = [for i in range(1, length(WireguardDefinition.islands)): {
+  name: 'Wireguard-Island${i}'
+  properties: {
+    priority: (2000 + i)
+    protocol: '*'
+    access: 'Allow'
+    direction: 'Inbound'
+    sourceAddressPrefix: 'VirtualNetwork'
+    sourcePortRange: '*'
+    destinationAddressPrefix: WireguardDefinition.islands[i-1]
+    destinationPortRange: '*'
+  }
+}]
+
 // ============================================================================================
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: ProjectDefinition.name
 }
 
-resource defaultSubNetwork 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: 'default'
-  parent: virtualNetwork
+resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+  name: 'gateway'
+  parent: vnet
 }
 
 resource gatewayPIP 'Microsoft.Network/publicIPAddresses@2022-01-01' = {
@@ -51,21 +119,7 @@ resource gatewayNSG 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
   name: ResourceName
   location: OrganizationDefinition.location
   properties: {
-    securityRules: [
-      {
-        name: 'SSH'
-        properties: {
-          priority: 1000
-          protocol: 'Tcp'
-          access: 'Allow'
-          direction: 'Inbound'
-          sourceAddressPrefix: OrganizationDefinition.network.ipRange
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '22'
-        }
-      }
-    ]
+    securityRules: concat(DefaultRules, IslandRules)
   }
 }
 
@@ -78,7 +132,7 @@ resource gatewayNIC 'Microsoft.Network/networkInterfaces@2021-05-01' = {
         name: 'default'
         properties: {
           subnet: {
-            id: defaultSubNetwork.id
+            id: snet.id
           }
           privateIPAddress: GatewayIP
           privateIPAllocationMethod: 'Static'
@@ -156,7 +210,7 @@ resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022
 }
 
 resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(virtualNetwork.id, gateway.id, contributorRoleDefinition.id)
+  name: guid(vnet.id, gateway.id, contributorRoleDefinition.id)
   properties: {
     principalId: gateway.identity.principalId
     roleDefinitionId: contributorRoleDefinition.id
@@ -178,8 +232,8 @@ resource gatewayInit 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' =
     forceUpdateTag: guid(deployment().name)
     autoUpgradeMinorVersion: true
     settings: {      
-      fileUris: map(GatewayInitScriptNames, name => uri(GatewayInitScriptsBaseUri, name))
-      commandToExecute: GatewayInitCommand
+      fileUris: map(InitScriptNames, name => uri(InitScriptsBaseUri, name))
+      commandToExecute: InitCommand
     }
   }
 }

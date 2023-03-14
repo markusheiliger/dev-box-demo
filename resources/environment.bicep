@@ -42,7 +42,6 @@ module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Featu
   name: '${take(deployment().name, 36)}_deployTestHost'
   scope: resourceGroup
   params: {
-    SNetName: deployNetwork.outputs.DefaultSNetName
     VNetName: deployNetwork.outputs.VNetName
   }
 }

@@ -3,7 +3,7 @@ targetScope = 'resourceGroup'
 // ============================================================================================
 
 param VNetName string
-param SNetName string
+param SNetName string = 'default'
 
 param Username string = 'godfather'
 param Password string = 'T00ManySecrets'

@@ -10,18 +10,18 @@ param ProjectDefinition object
 var ResourceName = '${ProjectDefinition.name}-WG'
 
 var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
-var WireguardIPSegments = split(split(wireguardSnet.properties.addressPrefix, '/')[0], '.')
-var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+4}'
+var WireguardIPSegments = split(split(snet.properties.addressPrefix, '/')[0], '.')
+var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+5}'
 var WireguardPort = 51820
 
 var WireguardInitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
 var WireguardInitScriptNames = [ 'initMachine.sh', 'setupWireGuard.sh' ]
 
 var WireguardArguments = join([
-  '-e \'${wireguardPIP.properties.ipAddress}:${WireguardPort}\''                          // Endpoint (the Wireguard public endpoint)
-  '-h \'${ProjectDefinition.network.ipRange}\''                                           // Home Range (the Project's IPRange)
-  '-v \'${WireguardDefinition.ipRange}\''                                                 // Virtual Range (internal Wireguard IPRange)
-  join(map(WireguardDefinition.islands, island => '-i \'${island.ipRange}\''), ' ')       // Island Ranges (list of Island IPRanges)
+  '-e \'${wireguardPIP.properties.ipAddress}:${WireguardPort}\''            // Endpoint (the Wireguard public endpoint)
+  '-h \'${ProjectDefinition.ipRange}\''                                     // Home Range (the Project's IPRange)
+  '-v \'${WireguardDefinition.ipRange}\''                                   // Virtual Range (internal Wireguard IPRange)
+  join(map(WireguardDefinition.islands, island => '-i \'${island}\''), ' ') // Island Ranges (list of Island IPRanges)
 ], ' ')
 
 var WireguardInitCommand = join(filter([
@@ -38,7 +38,7 @@ var WireguardInboundStatic = [
       protocol: 'Tcp'
       access: 'Allow'
       direction: 'Inbound'
-      sourceAddressPrefix: OrganizationDefinition.network.ipRange
+      sourceAddressPrefix: OrganizationDefinition.ipRange
       sourcePortRange: '*'
       destinationAddressPrefix: '*'
       destinationPortRange: '22'
@@ -68,7 +68,7 @@ var WireguardInboundIslands = [for i in range(1, length(WireguardDefinition.isla
     direction: 'Inbound'
     sourceAddressPrefix: 'VirtualNetwork'
     sourcePortRange: '*'
-    destinationAddressPrefix: WireguardDefinition.islands[i-1].ipRange
+    destinationAddressPrefix: WireguardDefinition.islands[i-1]
     destinationPortRange: '*'
   }
 }]
@@ -79,25 +79,20 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: ProjectDefinition.name
 }
 
-resource wireguardSnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: 'wireguard'
-  parent: vnet
-}
-
-resource defaultSnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: 'default'
+resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+  name: 'gateway'
   parent: vnet
 }
 
 resource defaultRoutes 'Microsoft.Network/routeTables@2022-07-01' existing = {
-  name: '${ProjectDefinition.name}-RT-${defaultSnet.name}'
+  name: vnet.name
 }
 
-resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = [for (IslandDefintion, IslandIndex) in WireguardDefinition.islands : {
-  name: 'Island${IslandIndex + 1}'
+resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = [for (island, islandIndex) in WireguardDefinition.islands : {
+  name: 'Island${islandIndex + 1}'
   parent: defaultRoutes
   properties: {
-    addressPrefix: IslandDefintion.ipRange
+    addressPrefix: island
     nextHopType: 'VirtualAppliance'
     nextHopIpAddress: wireguardNIC.properties.ipConfigurations[0].properties.privateIPAddress
   }
@@ -132,7 +127,7 @@ resource wireguardNIC 'Microsoft.Network/networkInterfaces@2021-05-01' = {
         name: 'default'
         properties: {
           subnet: {
-            id: wireguardSnet.id
+            id: snet.id
           }
           privateIPAddress: WireguardIP
           privateIPAllocationMethod: 'Static'

@@ -10,42 +10,26 @@ param InitialDeployment bool = false
 
 // ============================================================================================
 
-// var DefaultSubnetDefinition = first(filter(ProjectDefinition.network.subnets, subnet => subnet.name == 'default'))
-
-var SubNetRoutes = map(filter(ProjectDefinition.network.subnets, net => !startsWith(net.name, 'Azure')), net => '${ProjectDefinition.name}-RT-${net.name}')
-
-var SubNetConfigs = map(ProjectDefinition.network.subnets, net => !startsWith(net.name, 'Azure') ? {
-    name: net.name
-    properties: {
-      addressPrefix: net.ipRange
-      routeTable: { id: resourceId('Microsoft.Network/routeTables', '${ProjectDefinition.name}-RT-${net.name}') }
-      privateEndpointNetworkPolicies: 'Disabled'
-      privateLinkServiceNetworkPolicies: 'Enabled' 
-    }
-  } : {
-    name: net.name
-    properties: {
-      addressPrefix: net.ipRange
-    }
-  })
-
-// ============================================================================================
-
-resource routes 'Microsoft.Network/routeTables@2022-07-01' = [for name in SubNetRoutes : {
-  name: name
+resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
+  name: ProjectDefinition.name
   location: OrganizationDefinition.location
-}]
+}
+
+module splitSubnets '../utils/splitSubnets.bicep' = if (InitialDeployment) {
+  name: '${take(deployment().name, 36)}_splitSubnets'
+  params: {
+    IPRange: ProjectDefinition.ipRange
+    SubnetCount: 2
+  }
+}
 
 resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = if (InitialDeployment) {
   name: ProjectDefinition.name
   location: OrganizationDefinition.location
-  dependsOn: [
-    routes
-  ]
   properties: {
     addressSpace: {
       addressPrefixes: [
-        ProjectDefinition.network.ipRange
+        ProjectDefinition.ipRange
       ]
     }
     dhcpOptions: {
@@ -54,7 +38,23 @@ resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = i
         OrganizationGatewayIP
       ]
     }
-    subnets: SubNetConfigs
+    subnets: [
+      {
+        name: 'default'
+        properties: {
+          addressPrefix: splitSubnets.outputs.Subnets[0]
+          routeTable: {
+            id: routes.id
+          }
+        }
+      }
+      {
+        name: 'gateway'
+        properties: {
+          addressPrefix: splitSubnets.outputs.Subnets[1]
+        }
+      }
+    ]
   }
 }
 
@@ -74,27 +74,26 @@ resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
   properties: {
     registrationEnabled: true
     virtualNetwork: {
-      id: virtualNetwork.id
+      id: InitialDeployment ? virtualNetworkCreate.id : virtualNetwork.id
     }
   }
 }
 
-resource dnsZoneLinkOrganization 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  name: '${virtualNetwork.name}-${guid(OrganizationNetworkId)}'
-  parent: dnsZone
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: OrganizationNetworkId
-    }
-  }
-}
+// resource dnsZoneLinkOrganization 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+//   name: '${virtualNetwork.name}-${guid(OrganizationNetworkId)}'
+//   parent: dnsZone
+//   location: 'global'
+//   properties: {
+//     registrationEnabled: false
+//     virtualNetwork: {
+//       id: OrganizationNetworkId
+//     }
+//   }
+// }
 
 // ============================================================================================
 
 output VNetId string = virtualNetwork.id
 output VNetName string = virtualNetwork.name
-output SNets array = [ for subnet in ProjectDefinition.network.subnets: { id: resourceId('Microsoft.Network/virtualNetworks/subnets', ProjectDefinition.name, subnet.name), name: subnet.name }]
 output DnsZoneId string = dnsZone.id
 output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes

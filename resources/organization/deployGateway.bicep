@@ -8,9 +8,6 @@ param InitialDeployment bool = true
 
 // ============================================================================================
 
-var DefaultSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'default'))
-var FirewallSubnetDefinition = first(filter(OrganizationDefinition.network.subnets, subnet => subnet.name == 'AzureFirewallSubnet'))
-
 var FirewallRuleCollections = [
   {
     ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
@@ -227,28 +224,23 @@ var FirewallRuleCollections = [
 
 // ============================================================================================
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: OrganizationDefinition.name
 }
 
-resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: DefaultSubnetDefinition.name
-  parent: virtualNetwork
+resource routes 'Microsoft.Network/routeTables@2022-07-01' existing = {
+  name: vnet.name
 }
 
-resource defaultSubNetRoutes 'Microsoft.Network/routeTables@2022-07-01' existing = {
-  name: '${virtualNetwork.name}-RT-${defaultSubNet.name}'
-}
-
-resource firewallSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
-  name: FirewallSubnetDefinition.name
-  parent: virtualNetwork
+resource firewallSnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+  name: 'AzureFirewallSubnet'
+  parent: vnet
 }
 
 module deployIPGroups '../utils/deployIPGroups.bicep' = {
   name: '${take(deployment().name, 36)}_deployIPGroups'
   params: {
-    VNetName: virtualNetwork.name
+    VNetName: vnet.name
     InitialDeployment: InitialDeployment
   }
 }
@@ -258,7 +250,7 @@ module deployFirewall '../utils/deployFirewall.bicep' = if (InitialDeployment) {
   params: {
     FirewallName: '${OrganizationDefinition.name}-FW'
     FirewallLocation: OrganizationDefinition.location
-    FirewallSubnetId: firewallSubNet.id
+    FirewallSubnetId: firewallSnet.id
     FirewallRuleCollections: FirewallRuleCollections
     WorkspaceId: OrganizationWorkspaceId
   }
@@ -266,7 +258,7 @@ module deployFirewall '../utils/deployFirewall.bicep' = if (InitialDeployment) {
 
 resource defaultSubNetRouteGateway 'Microsoft.Network/routeTables/routes@2022-07-01' = if (InitialDeployment) {
   name: '${OrganizationDefinition.name}-FW'
-  parent: defaultSubNetRoutes
+  parent: routes
   properties: {
     nextHopType: 'VirtualAppliance'
     nextHopIpAddress: InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : null
@@ -277,7 +269,7 @@ resource defaultSubNetRouteGateway 'Microsoft.Network/routeTables/routes@2022-07
 module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = if (InitialDeployment) {
   name: '${take(deployment().name, 36)}_updateVirtualNetworkDns'
   params: {
-    VNetName: virtualNetwork.name
+    VNetName: vnet.name
     DnsServers: [
       '168.63.129.16'
       InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : null

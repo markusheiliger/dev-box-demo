@@ -78,7 +78,7 @@ resetSubscription() {
 
 	cancelDeployments $SUBSCRIPTIONID
 
-	# delete developer cloud related resources
+	# delete dev projects
 	# ------------------------------------------------------------------------------
 
 	for POOLID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects/pools' --query [].id -o tsv | dos2unix); do
@@ -87,9 +87,39 @@ resetSubscription() {
 	done; wait 
 
 	for PROJECTID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects' --query [].id -o tsv | dos2unix); do
+
+		PROJECTJSON=$(az devcenter admin project show --ids $PROJECTID)
+		PROJECTNAME=$(echo $PROJECTJSON | jq -r .name)
+		PROJECTRG=$(echo $PROJECTJSON | jq -r .resourceGroup)
+
+
+	done; wait
+
+	for PROJECTID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects' --query [].id -o tsv | dos2unix); do
 		echo "$SUBSCRIPTIONID - Deleting dev project '$PROJECTID' ..." 
 		az devcenter admin project delete --ids $PROJECTID --yes --only-show-errors &
 	done; wait 
+
+	# delete dev centers
+	# ------------------------------------------------------------------------------
+
+	for DEVBOXDEFINITIONID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/devcenters/devboxdefinitions' --query [].id -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Deleting devbox definition '$DEVBOXDEFINITIONID' ..." 
+		az devcenter admin devbox-definition delete --ids $POOLID --yes --only-show-errors &
+	done; wait 
+
+	for DEVCENTERID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/devcenters' --query [].id -o tsv | dos2unix); do
+		
+		DEVCENTERJSON=$(az devcenter admin devcenter show --ids $DEVCENTERID)
+		DEVCENTERNAME=$(echo $DEVCENTERJSON | jq -r .name)
+		DEVCENTERRG=$(echo $DEVCENTERJSON | jq -r .resourceGroup)
+		
+		for ATTACHEDNETWORKNAME in $(az devcenter admin attached-network list --subscription $SUBSCRIPTIONID --resource-group $DEVCENTERRG --dev-center-name $DEVCENTERNAME --query [].name -o tsv | dos2unix); do
+			echo "$SUBSCRIPTIONID - Detaching network '$ATTACHEDNETWORKNAME' from dev center '$DEVCENTERID' ..." 
+			az devcenter admin attached-network delete --subscription $SUBSCRIPTIONID --resource-group $DEVCENTERRG --dev-center-name $DEVCENTERNAME --name $ATTACHEDNETWORKNAME --yes --only-show-errors &
+		done
+
+	done; wait
 
 	for DEVCENTERID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/devcenters' --query [].id -o tsv | dos2unix); do
 		echo "$SUBSCRIPTIONID - Deleting dev center '$DEVCENTERID' ..." 

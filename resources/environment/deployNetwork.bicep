@@ -59,13 +59,13 @@ resource virtualNetworkCreate 'Microsoft.Network/virtualNetworks@2022-07-01' = i
   }
 }
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
+resource vnet 'Microsoft.Network/virtualNetworks@2022-07-01' existing = {
   name: ResourceName
 }
 
-resource defaultSubNet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
+resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = {
   name: 'default'
-  parent: virtualNetwork
+  parent: vnet
 }
 
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
@@ -74,19 +74,19 @@ resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 }
 
 resource dnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  name: '${virtualNetwork.name}-${guid(virtualNetwork.id)}'
+  name: '${vnet.name}-${guid(vnet.id)}'
   parent: dnsZone
   location: 'global'
   properties: {
     registrationEnabled: true
     virtualNetwork: {
-      id: virtualNetwork.id
+      id: vnet.id
     }
   }
 }
 
 resource dnsZoneLinkProject 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  name: '${virtualNetwork.name}-${guid(ProjectNetworkId)}'
+  name: '${vnet.name}-${guid(ProjectNetworkId)}'
   parent: dnsZone
   location: 'global'
   properties: {
@@ -99,9 +99,7 @@ resource dnsZoneLinkProject 'Microsoft.Network/privateDnsZones/virtualNetworkLin
 
 // ============================================================================================
 
-output VNetId string = virtualNetwork.id
-output VNetName string = virtualNetwork.name
-output DefaultSNetId string = defaultSubNet.id
-output DefaultSNetName string = defaultSubNet.name
+output VNetId string = vnet.id
+output VNetName string = vnet.name
 output DnsZoneId string = dnsZone.id
-output IpRanges array = virtualNetwork.properties.addressSpace.addressPrefixes
+output IpRanges array = vnet.properties.addressSpace.addressPrefixes

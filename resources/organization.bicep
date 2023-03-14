@@ -85,7 +85,6 @@ module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Featu
   name: '${take(deployment().name, 36)}_deployTestHost'
   scope: resourceGroup
   params: {
-    SNetName: deployNetwork.outputs.DefaultSNetName
     VNetName: deployNetwork.outputs.VNetName
   }
 }
@@ -114,6 +113,7 @@ module peerNetworks 'utils/peerNetworks.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString(deployment().name)}'
   params: {
     HubNetworkId: deployNetwork.outputs.VNetId
+    HubGatewayIP: deployGateway.outputs.GatewayIP
     SpokeNetworkIds: map(projects.outputs.ProjectResults, ctx => ctx.NetworkId)
     UpdateIPGroups: true
   }

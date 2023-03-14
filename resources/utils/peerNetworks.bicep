@@ -4,6 +4,8 @@ targetScope = 'subscription'
 
 param HubNetworkId string
 
+param HubGatewayIP string = ''
+
 param SpokeNetworkIds array
 
 param PeeringPrefix string = ''
@@ -11,6 +13,12 @@ param PeeringPrefix string = ''
 param UpdateIPGroups bool = false
 
 param OperationId string = newGuid()
+
+// ============================================================================================
+
+var PeeringPrefixSegments = split(PeeringPrefix, '|')
+var Hub2SpokePeeringPrefix = string(empty(PeeringPrefix) ? 'spoke' : last(PeeringPrefixSegments))
+var Spoke2HubPeeringPrefix = string(empty(PeeringPrefix) ? 'hub' : first(PeeringPrefixSegments))
 
 // ============================================================================================
 
@@ -25,7 +33,7 @@ module peerHub2Spoke 'peerNetwork.bicep' = [for i in range(0, length(SpokeNetwor
   params: {
     LocalVirtualNetworkName: hubNetwork.name
     RemoteVirtualNetworkId: SpokeNetworkIds[i]
-    PeeringPrefix: empty(PeeringPrefix) ? 'spoke' : PeeringPrefix
+    PeeringPrefix: Hub2SpokePeeringPrefix
   }
 }]
 
@@ -40,7 +48,8 @@ module peerSpoke2Hub 'peerNetwork.bicep' = [for i in range(0, length(SpokeNetwor
   params: {
     LocalVirtualNetworkName: spokeNetwork[i].name
     RemoteVirtualNetworkId: HubNetworkId
-    PeeringPrefix: empty(PeeringPrefix) ? 'hub' : PeeringPrefix
+    RemoteGatewayIP: HubGatewayIP
+    PeeringPrefix: Spoke2HubPeeringPrefix
   }
 }]
 
