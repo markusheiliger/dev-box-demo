@@ -113,8 +113,10 @@ module peerNetworks 'utils/peerNetworks.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString(deployment().name)}'
   params: {
     HubNetworkId: deployNetwork.outputs.VNetId
+    HubPeeringPrefix: 'organization'
     HubGatewayIP: deployGateway.outputs.GatewayIP
     SpokeNetworkIds: map(projects.outputs.ProjectResults, ctx => ctx.NetworkId)
+    SpokePeeringPrefix: 'project'
     UpdateIPGroups: true
   }
 }

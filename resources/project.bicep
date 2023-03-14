@@ -99,7 +99,6 @@ module environments './environments.bicep' = {
     ProjectDefinition: ProjectDefinition
     ProjectContext:{
       NetworkId: deployNetwork.outputs.VNetId
-      // GatewayIP: deployForwarder.outputs.ForwarderIP
       GatewayIP: deployGateway.outputs.GatewayIP
     }
     DeploymentContext: DeploymentContext
@@ -110,9 +109,10 @@ module peerNetworks 'utils/peerNetworks.bicep' = {
   name: '${take(deployment().name, 36)}_${uniqueString(deployment().name)}'
   params: {
     HubNetworkId: deployNetwork.outputs.VNetId
-    // HubGatewayIP: deployForwarder.outputs.ForwarderIP
+    HubPeeringPrefix: 'project'
     HubGatewayIP: deployGateway.outputs.GatewayIP
     SpokeNetworkIds: map(environments.outputs.EnvironmentResults, ctx => ctx.NetworkId)
+    SpokePeeringPrefix: 'environment'
   }
 }
 
@@ -121,7 +121,6 @@ module peerNetworks 'utils/peerNetworks.bicep' = {
 output ProjectResult object = {
   ResourceGroupId: resourceGroup.id
   NetworkId: deployNetwork.outputs.VNetId
-  // GatewayIP: deployForwarder.outputs.ForwarderIP
   GatewayIP: deployGateway.outputs.GatewayIP
   EnvironmentResults: environments.outputs.EnvironmentResults
 }

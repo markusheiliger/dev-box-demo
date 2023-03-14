@@ -11,34 +11,11 @@ CLIENTS=()
 
 while getopts 'n:f:c:' OPT; do
     case "$OPT" in
-		n)
-			NETWORKID="${OPTARG}" ;;
 		f)
 			FORWARDS+=("${OPTARG}") ;;
 		c)
 			CLIENTS+=("${OPTARG}") ;;
     esac
-done
-
-function errorHandler {
-
-	# fallback to default DNS
-	az network vnet update \
-		--ids $NETWORKID \
-		--dns-servers null \
-		--output none
-
-	echo "Error in line $1" | tee /dev/stderr && exit 1
-}
-
-trap "errorHandler $LINENO" ERR
-
-for VNETCLIENT in $(az network vnet show --ids $NETWORKID --query 'addressSpace.addressPrefixes[]' -o tsv); do
-	[ ! -z "$VNETCLIENT" ] && CLIENTS+=("$VNETCLIENT") && echo "Resolved VNet address prefix: $VNETCLIENT"
-done
-
-for PEERCLIENT in $(az network vnet peering list --vnet-name $(basename $NETWORKID) --query '[].remoteVirtualNetworkAddressSpace.addressPrefixes[]' -o tsv); do
-	[ ! -z "$PEERCLIENT" ] && CLIENTS+=("$PEERCLIENT") && echo "Resolved PEER address prefix: $VNETCLIENT"
 done
 
 for FORWARD in "${FORWARDS[@]}"; do
@@ -94,9 +71,3 @@ sudo named-checkconf /etc/bind/named.conf.options
 
 # restart bind with new configuration
 sudo service bind9 restart
-
-# patch DNS on network 
-az network vnet update \
-	--ids $NETWORKID \
-	--dns-servers 168.63.129.16 $(jq -r '[.network.interface[].ipv4.ipAddress[].privateIpAddress]|join(" ")' ./metadata.json) \
-	--output none

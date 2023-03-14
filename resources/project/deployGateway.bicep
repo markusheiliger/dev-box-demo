@@ -15,28 +15,27 @@ var GatewayIPSegments = split(split(snet.properties.addressPrefix, '/')[0],'.')
 var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(any(last(GatewayIPSegments)))+4}'
 
 var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
-// var WireguardIPSegments = split(split(snet.properties.addressPrefix, '/')[0], '.')
-// var WireguardIP = '${join(take(WireguardIPSegments, 3),'.')}.${int(any(last(WireguardIPSegments)))+5}'
 var WireguardPort = 51820
 
 
+var EnvironmentPeerings = filter(vnet.properties.virtualNetworkPeerings, peer => startsWith(peer.name, 'environment-'))
+
 var DnsForwarderArguments = join([
-  '-n \'${vnet.id}\''
-  '-f \'168.63.129.16\''
-  ' -f \'${OrganizationGatewayIP}\''
+  join(map(EnvironmentPeerings, peer => '-c \'${peer.properties.remoteAddressSpace}\''), ' ')       // mark environment networks as valid clients
+  '-f \'168.63.129.16\''                                                                            // forward request to the Azure default DNS
+  '-f \'${OrganizationGatewayIP}\''                                                                 // forward request to the organization DNS
 ], ' ')
 
 var NetForwarderArguments = join([
-  '-n \'${vnet.id}\''
-  // join(map(ProjectDefinition.environments, env => '-f \'${env.ipRange}\''), ' ')
-  join(map(vnet.properties.virtualNetworkPeerings, peer => '-f \'${peer.properties.remoteAddressSpace}\''), ' ')
+  join(map(EnvironmentPeerings, peer => '-f \'${peer.properties.remoteAddressSpace}\''), ' ')       // forward traffic from environment networks
+  '-b \'${OrganizationDefinition.ipRange}\''                                                        // block forward request from organization network
 ], ' ')
 
 var WireguardArguments = join([
-  '-e \'${gatewayPIP.properties.ipAddress}:${WireguardPort}\''              // Endpoint (the Wireguard public endpoint)
-  '-h \'${ProjectDefinition.ipRange}\''                                     // Home Range (the Project's IPRange)
-  '-v \'${WireguardDefinition.ipRange}\''                                   // Virtual Range (internal Wireguard IPRange)
-  join(map(WireguardDefinition.islands, island => '-i \'${island}\''), ' ') // Island Ranges (list of Island IPRanges)
+  '-e \'${gatewayPIP.properties.ipAddress}:${WireguardPort}\''                                      // Endpoint (the Wireguard public endpoint)
+  '-h \'${ProjectDefinition.ipRange}\''                                                             // Home Range (the Project's IPRange)
+  '-v \'${WireguardDefinition.ipRange}\''                                                           // Virtual Range (internal Wireguard IPRange)
+  join(map(WireguardDefinition.islands, island => '-i \'${island}\''), ' ')                         // Island Ranges (list of Island IPRanges)
 ], ' ')
 
 var InitScriptsBaseUri = 'https://raw.githubusercontent.com/markusheiliger/dev-box-demo/main/resources/project/scripts/'
@@ -102,6 +101,20 @@ resource snet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' existing = 
   name: 'gateway'
   parent: vnet
 }
+
+resource defaultRoutes 'Microsoft.Network/routeTables@2022-07-01' existing = {
+  name: vnet.name
+}
+
+resource defaultRoute 'Microsoft.Network/routeTables/routes@2022-07-01' = [for (island, islandIndex) in WireguardDefinition.islands : {
+  name: 'Island${islandIndex + 1}'
+  parent: defaultRoutes
+  properties: {
+    addressPrefix: island
+    nextHopType: 'VirtualAppliance'
+    nextHopIpAddress: gatewayNIC.properties.ipConfigurations[0].properties.privateIPAddress
+  }
+}]
 
 resource gatewayPIP 'Microsoft.Network/publicIPAddresses@2022-01-01' = {
   name: ResourceName

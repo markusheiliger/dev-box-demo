@@ -9,8 +9,6 @@ BLOCKS=()
 
 while getopts 'n:f:b:' OPT; do
     case "$OPT" in
-		n)
-			NETWORKID="${OPTARG}" ;;
 		f)
 			FORWARDS+=("${OPTARG}") ;;
 		b)
