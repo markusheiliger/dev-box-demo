@@ -113,7 +113,7 @@ resource devBoxPool 'Microsoft.DevCenter/projects/pools@2022-11-11-preview' = [f
   dependsOn: [
     attachNetworkConnection
   ]
-  properties: {
+  properties: {    
     devBoxDefinitionName: DevBox.name
     networkConnectionName: networkConnection.name
     licenseType: 'Windows_Client'
@@ -181,6 +181,7 @@ module deploySettings '../utils/deploySettings.bicep' = {
     })
   }
 }
+
 // ============================================================================================
 
 output NetworkConnectionId string = networkConnection.id

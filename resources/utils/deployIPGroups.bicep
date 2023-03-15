@@ -10,7 +10,7 @@ param InitialDeployment bool = false
 
 var ResourcePrefix = '${vnet.name}-IPG'
 
-var IPGroupSuffixes = [ 'SPOKE', 'HUB' ]
+var IPGroupSuffixes = [ 'project' ]
 var IPGroupHashTag = 'IPGroupHash'
 
 // ============================================================================================
