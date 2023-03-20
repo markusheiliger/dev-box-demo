@@ -48,8 +48,8 @@ if [ "$SERVER_HOST" -eq "$SERVER_PORT" ]; then
 	SERVER_PORT='51820'
 fi
 
-SERVER_PRIVATEKEY=$(wg genkey | sudo tee $SERVER_PATH/privateKey)
-SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey | sudo tee $SERVER_PATH/publicKey)
+SERVER_PRIVATEKEY=$(wg genkey)
+SERVER_PUBLICKEY=$(echo $SERVER_PRIVATEKEY | wg pubkey)
 
 echo "Creating WireGuard server configuration ..." && sudo tee $SERVER_PATH/wg0.conf <<EOF
 
@@ -65,13 +65,9 @@ IRANGESCOUNT=$((${#IRANGES[@]}))
 for (( i=0 ; i<$IRANGESCOUNT ; i++ )); do
 
 	PEER_INDEX=$(printf "%03d" $(($i + 1)))
-	PEER_PATH="$SERVER_PATH/island-$PEER_INDEX"
-
-	sudo mkdir $PEER_PATH
-	
-	PEER_PRIVATEKEY=$(wg genkey | sudo tee $PEER_PATH/privateKey)
-	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey | sudo tee $PEER_PATH/publicKey)
-	PEER_PRESHAREDKEY=$(wg genpsk  | sudo tee $PEER_PATH/presharedKey)
+	PEER_PRIVATEKEY=$(wg genkey)
+	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey)
+	PEER_PRESHAREDKEY=$(wg genpsk)
 
 echo "Append WireGuard server configuration (ISLAND #$PEER_INDEX) ..." && sudo tee -a $SERVER_PATH/wg0.conf <<EOF
 
@@ -83,7 +79,7 @@ PersistentKeepalive = 20
 
 EOF
 
-echo "Creating WireGuard peer configuration (ISLAND #$PEER_INDEX) ..." && sudo tee $PEER_PATH/wg0.conf <<EOF
+echo "Creating WireGuard peer configuration (ISLAND #$PEER_INDEX) ..." && sudo tee $SERVER_PATH/island-$PEER_INDEX.conf <<EOF
 
 [Interface]
 Address = ${VRANGEIPS[(i+2)]}/32

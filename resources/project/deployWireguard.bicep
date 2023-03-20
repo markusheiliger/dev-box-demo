@@ -205,7 +205,7 @@ resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022
 }
 
 resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(vnet.id, wireguard.id, contributorRoleDefinition.id)
+  name: guid(vnet.id, contributorRoleDefinition.id, wireguard.id)
   properties: {
     principalId: wireguard.identity.principalId
     roleDefinitionId: contributorRoleDefinition.id

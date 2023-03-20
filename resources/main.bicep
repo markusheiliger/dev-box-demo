@@ -11,7 +11,7 @@ param Windows365PrinicalId string
 var DeploymentContext = {
   Windows365PrinicalId: Windows365PrinicalId
   Features: {
-    TestHost: true
+    TestHost: false
   } 
 }
 

@@ -90,7 +90,7 @@ resource galleryContributorRoleAssignment 'Microsoft.Authorization/roleAssignmen
   properties: {
     roleDefinitionId: contributorRoleDefinition.id
     principalId: devCenter.identity.principalId
-    principalType: 'ServicePrincipal'
+    principalType: 'ServicePrincipal'    
   }
 }
 

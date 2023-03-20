@@ -17,17 +17,17 @@ var GatewayIP = '${join(take(GatewayIPSegments, 3),'.')}.${int(any(last(GatewayI
 var WireguardDefinition = contains(ProjectDefinition, 'wireguard') ? ProjectDefinition.wireguard : {}
 var WireguardPort = 51820
 
-
 var EnvironmentPeerings = filter(vnet.properties.virtualNetworkPeerings, peer => startsWith(peer.name, 'environment-'))
+var EnvironmentAddressPrefixes = flatten(map(EnvironmentPeerings, peer => peer.properties.remoteAddressSpace.addressPrefixes))
 
 var DnsForwarderArguments = join([
-  join(map(EnvironmentPeerings, peer => '-c \'${peer.properties.remoteAddressSpace}\''), ' ')       // mark environment networks as valid clients
+  join(map(EnvironmentAddressPrefixes, prefix => '-c \'${prefix}\''), ' ')                          // mark environment networks as valid clients
   '-f \'168.63.129.16\''                                                                            // forward request to the Azure default DNS
   '-f \'${OrganizationGatewayIP}\''                                                                 // forward request to the organization DNS
 ], ' ')
 
 var NetForwarderArguments = join([
-  join(map(EnvironmentPeerings, peer => '-f \'${peer.properties.remoteAddressSpace}\''), ' ')       // forward traffic from environment networks
+  join(map(EnvironmentAddressPrefixes, prefix => '-f \'${prefix}\''), ' ')                          // forward traffic from environment networks
   '-b \'${OrganizationDefinition.ipRange}\''                                                        // block forward request from organization network
 ], ' ')
 
@@ -223,7 +223,7 @@ resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022
 }
 
 resource contributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(vnet.id, gateway.id, contributorRoleDefinition.id)
+  name: guid(vnet.id, contributorRoleDefinition.id, gateway.id)
   properties: {
     principalId: gateway.identity.principalId
     roleDefinitionId: contributorRoleDefinition.id

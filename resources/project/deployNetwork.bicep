@@ -15,7 +15,7 @@ resource routes 'Microsoft.Network/routeTables@2022-07-01' = {
   location: OrganizationDefinition.location
 }
 
-module splitSubnets '../utils/splitSubnets.bicep' = if (InitialDeployment) {
+module splitSubnets '../utils/splitSubnets.bicep' = {
   name: '${take(deployment().name, 36)}_splitSubnets'
   params: {
     IPRange: ProjectDefinition.ipRange

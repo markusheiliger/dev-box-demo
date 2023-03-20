@@ -16,7 +16,7 @@ resource ownerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01
 }
 
 resource ownerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, devCenter.id, ownerRoleDefinition.id)
+  name: guid(subscription().id, ownerRoleDefinition.id, devCenter.id)
   properties: {
     principalId: devCenter.identity.principalId
     principalType: 'ServicePrincipal'
