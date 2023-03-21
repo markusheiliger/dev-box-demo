@@ -58,6 +58,11 @@ Address = ${VRANGEIPS[1]}
 PrivateKey = $SERVER_PRIVATEKEY
 ListenPort = $SERVER_PORT
 
+PostUp = iptables -I FORWARD 1 -i eth0 -o wg0 -j ACCEPT
+PostUp = iptables -I FORWARD 1 -i wg0 -o eth0 -j ACCEPT
+PostDown = iptables -D FORWARD -i eth0 -o wg0 -j ACCEPT
+PostDown = iptables -D FORWARD -i wg0 -o eth0 -j ACCEPT
+
 EOF
 
 IRANGESCOUNT=$((${#IRANGES[@]}))
