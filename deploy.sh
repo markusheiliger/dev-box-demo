@@ -72,6 +72,25 @@ purgeResources() {
 	wait # ... until all purge operations are done
 }
 
+cleanupRoleAssignmentsAndDefinitions() {
+
+	local SUBSCRIPTIONID="$1"
+
+	# delete role assignments and definitions
+	# ------------------------------------------------------------------------------
+
+	for ASSIGNMENTID in $(az role assignment list --subscription $SUBSCRIPTIONID --query "[?(principalType=='ServicePrincipal' && principalName=='')].id" -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Deleting orphan role assignment $ASSIGNMENTID"
+		az role assignment delete --subscription $SUBSCRIPTIONID --ids $ASSIGNMENTID --yes -o none &
+	done; wait
+
+	for DEFINITIONNAME in $(az role definition list --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID --query [].name -o tsv | dos2unix); do
+		echo "$SUBSCRIPTIONID - Deleting custom role definition $DEFINITIONNAME"
+		az role definition delete --name $DEFINITIONNAME --custom-role-only --scope /subscriptions/$SUBSCRIPTIONID -o none &
+	done; wait
+
+}
+
 resetSubscription() {
 
 	local SUBSCRIPTIONID="$1"
@@ -105,7 +124,7 @@ resetSubscription() {
 
 	for DEVBOXDEFINITIONID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/devcenters/devboxdefinitions' --query [].id -o tsv | dos2unix); do
 		echo "$SUBSCRIPTIONID - Deleting devbox definition '$DEVBOXDEFINITIONID' ..." 
-		az devcenter admin devbox-definition delete --ids $POOLID --yes --only-show-errors &
+		az devcenter admin devbox-definition delete --ids $DEVBOXDEFINITIONID --yes --only-show-errors &
 	done; wait 
 
 	for DEVCENTERID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/devcenters' --query [].id -o tsv | dos2unix); do
@@ -168,6 +187,8 @@ resetSubscription() {
 	echo "Finished reset of subscription $SUBSCRIPTIONID"
 }
 
+
+
 PROJECTS=()
 
 while getopts 'o:p:r' OPT; do
@@ -211,6 +232,10 @@ if [ "$RESET" = 'true' ]; then
 	for RESETSUBSCRIPTION in "${RESETSUBSCRIPTIONS[@]}"; do
 		resetSubscription $RESETSUBSCRIPTION &		
 	done; wait
+	for RESETSUBSCRIPTION in "${RESETSUBSCRIPTIONS[@]}"; do
+		cleanupRoleAssignmentsAndDefinitions $RESETSUBSCRIPTION &
+	done; wait
+
 	echo '... done'
 fi
 

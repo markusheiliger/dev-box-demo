@@ -12,6 +12,7 @@ var DeploymentContext = {
   Windows365PrinicalId: Windows365PrinicalId
   Features: {
     TestHost: false
+    TestSQL: true
   } 
 }
 

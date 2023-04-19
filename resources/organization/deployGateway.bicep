@@ -271,8 +271,8 @@ module updateVirtualNetworkDns '../utils/updateVirtualNetworkDns.bicep' = if (In
   params: {
     VNetName: vnet.name
     DnsServers: [
-      '168.63.129.16'
       InitialDeployment ? deployFirewall.outputs.FirewallPrivateIP : null
+      '168.63.129.16'
     ]
   }
 }

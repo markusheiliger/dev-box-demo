@@ -3,3 +3,4 @@ organization.json
 projects.json
 project-*.json
 
+images/*/build.pkr.log

@@ -21,6 +21,11 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   location: OrganizationDefinition.location
 }
 
+resource resourceGroupPrivateLink 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: 'ORG-${OrganizationDefinition.name}-PL'
+  location: OrganizationDefinition.location
+}
+
 module deployMonitoring './organization/deployMonitoring.bicep' = {
   name: '${take(deployment().name, 36)}_deployMonitoring'
   scope: resourceGroup
@@ -83,6 +88,14 @@ module deployGateway 'organization/deployGateway.bicep' = {
 
 module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Features.TestHost) {
   name: '${take(deployment().name, 36)}_deployTestHost'
+  scope: resourceGroup
+  params: {
+    VNetName: deployNetwork.outputs.VNetName
+  }
+}
+
+module deployTestSQL 'utils/deployTestSQL.bicep' = if (DeploymentContext.Features.TestSQL) {
+  name: '${take(deployment().name, 36)}_deployTestSQL'
   scope: resourceGroup
   params: {
     VNetName: deployNetwork.outputs.VNetName
