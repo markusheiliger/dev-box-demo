@@ -138,18 +138,19 @@ build {
   # Custom Packages 
   # =============================================================================================
 
-  # provisioner "powershell" {
-  #   elevated_user     = build.User
-  #   elevated_password = build.Password
-  #   scripts = [
-  #     "${path.root}/../scripts/Install-DockerDesktop.ps1",
-  #   ]
-  # }
+  provisioner "powershell" {
+    elevated_user     = build.User
+    elevated_password = build.Password
+    scripts = [
+      "${path.root}/../scripts/Install-WuTCOMRedirector.ps1",
+      "${path.root}/../scripts/Install-WuTUSBRedirector.ps1"
+    ]
+  }
   
-  # provisioner "windows-restart" {
-  #   check_registry = true
-  #   restart_timeout = "30m"
-  # }
+  provisioner "windows-restart" {
+    check_registry = true
+    restart_timeout = "30m"
+  }
 
   # =============================================================================================
   # Finalize Image - Install Windows Updates and Generalize VM 

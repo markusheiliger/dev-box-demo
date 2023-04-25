@@ -8,8 +8,9 @@ ENDPOINT=''
 HRANGE=''
 VRANGE=''
 IRANGES=()
+DADDRESSES=()
 
-while getopts 'e:h:v:i:' OPT; do
+while getopts 'e:h:v:i:d:' OPT; do
     case "$OPT" in
 		e)
 			ENDPOINT="${OPTARG}" ;;
@@ -19,6 +20,8 @@ while getopts 'e:h:v:i:' OPT; do
 			VRANGE="${OPTARG}" ;;
 		i)
 			IRANGES+=("${OPTARG}") ;;
+		d)
+			DADDRESSES+=("${OPTARG}") ;;
     esac
 done
 
@@ -33,7 +36,6 @@ sudo sysctl -p
 # get all available IP addresses in the provided IP range / CIDR block
 # CAUTION: leave the outer parenthesis where they are to get the result as array
 VRANGEIPS=($(nmap -sL -n $VRANGE | awk '/Nmap scan report/{print $NF}'))
-
 
 SERVER_PATH='/etc/wireguard'
 sudo rm -rf $SERVER_PATH/*
@@ -64,6 +66,10 @@ PostDown = iptables -D FORWARD -i eth0 -o wg0 -j ACCEPT
 PostDown = iptables -D FORWARD -i wg0 -o eth0 -j ACCEPT
 
 EOF
+
+# ==================================================
+# ISLANDS
+# ==================================================
 
 IRANGESCOUNT=$((${#IRANGES[@]}))
 
@@ -100,6 +106,50 @@ PersistentKeepalive = 20
 EOF
 
 done
+
+# ==================================================
+# DEVICES
+# ==================================================
+
+DADDRESSESCOUNT=$((${#DADDRESSES[@]}))
+
+for (( i=0 ; i<$DADDRESSESCOUNT ; i++ )); do
+
+	PEER_INDEX=$(printf "%03d" $(($i + 1)))
+	PEER_PRIVATEKEY=$(wg genkey)
+	PEER_PUBLICKEY=$(echo $PEER_PRIVATEKEY | wg pubkey)
+	PEER_PRESHAREDKEY=$(wg genpsk)
+
+echo "Append WireGuard server configuration (DEVICE #$PEER_INDEX) ..." && sudo tee -a $SERVER_PATH/wg0.conf <<EOF
+
+[Peer]
+PublicKey = $PEER_PUBLICKEY
+PresharedKey = $PEER_PRESHAREDKEY
+AllowedIPs = $VRANGE, ${DADDRESSES[i]}
+PersistentKeepalive = 20
+
+EOF
+
+echo "Creating WireGuard peer configuration (DEVICE #$PEER_INDEX) ..." && sudo tee $SERVER_PATH/device-$PEER_INDEX.conf <<EOF
+
+[Interface]
+Address = ${VRANGEIPS[(i+2)]}/32
+PrivateKey = $PEER_PRIVATEKEY
+
+[Peer]
+PublicKey = $SERVER_PUBLICKEY
+PresharedKey = $PEER_PRESHAREDKEY
+Endpoint = $SERVER_HOST:$SERVER_PORT
+AllowedIPs = $HRANGE, $VRANGE
+PersistentKeepalive = 20
+
+EOF
+
+done
+
+# ==================================================
+# CONFIGURE SERVICE
+# ==================================================
 
 # enable and start WireGuard service
 sudo systemctl enable wg-quick@wg0.service
