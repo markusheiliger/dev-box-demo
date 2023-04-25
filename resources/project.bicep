@@ -48,31 +48,6 @@ module deployGateway 'project/deployGateway.bicep' = {
   }
 }
 
-// module deployForwarder 'project/deployForwarder.bicep' = {
-//   name: '${take(deployment().name, 36)}_deployForwarder'
-//   scope: resourceGroup
-//   dependsOn: [
-//     deployNetwork
-//   ]
-//   params: {
-//     OrganizationDefinition: OrganizationDefinition
-//     OrganizationGatewayIP: OrganizationContext.GatewayIP
-//     ProjectDefinition: ProjectDefinition
-//   }
-// }
-
-// module deployWireguard 'project/deployWireguard.bicep' = {
-//   name: '${take(deployment().name, 36)}_deployWireguard'
-//   scope: resourceGroup
-//   dependsOn: [
-//     deployNetwork
-//   ]
-//   params: {
-//     OrganizationDefinition: OrganizationDefinition
-//     ProjectDefinition: ProjectDefinition
-//   }
-// }
-
 module deployTestHost 'utils/deployTestHost.bicep' = if (DeploymentContext.Features.TestHost) {
   name: '${take(deployment().name, 36)}_deployTestHost'
   scope: resourceGroup
