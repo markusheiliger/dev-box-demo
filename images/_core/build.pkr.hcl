@@ -8,23 +8,28 @@ packer {
   }
 }
 
-# https://www.packer.io/plugins/builders/azure/arm
 source "azure-arm" "vm" {
+
   skip_create_image                   = false
   async_resourcegroup_delete          = true
+  secure_boot_enabled                 = true
   vm_size                             = "Standard_D8d_v4" # default is Standard_A1
+
   # winrm options
   communicator                        = "winrm"
   winrm_username                      = "packer"
   winrm_insecure                      = true
   winrm_use_ssl                       = true
   os_type                             = "Windows"
+  os_disk_size_gb                     = 1024
+  
   # base image options (Azure Marketplace Images only)
-  image_publisher                     = "MicrosoftWindowsDesktop"             # "MicrosoftVisualStudio"
-  image_offer                         = "windows-ent-cpc"                     # "visualstudioplustools"
-  image_sku                           = "win11-22h2-ent-cpc-os"               # "vs-2022-ent-general-win11-m365-gen2"
-  image_version                       = "latest"
+  image_publisher                     = local.image.publisher
+  image_offer                         = local.image.offer
+  image_sku                           = local.image.sku
+  image_version                       = local.image.version
   use_azure_cli_auth                  = true
+
   # packer creates a temporary resource group
   subscription_id                     = var.gallerySubscription
   location                            = var.galleryLocation
@@ -40,20 +45,21 @@ source "azure-arm" "vm" {
   }
 }
 
+
 build {
 
   sources = ["source.azure-arm.vm"]
 
   # =============================================================================================
-  # Initialize VM - Enable software installation with elevated privilidges
+  # Initialize VM 
   # =============================================================================================
-  
+
   provisioner "powershell" {
     environment_vars = [
       "ADMIN_USERNAME=${build.User}",
       "ADMIN_PASSWORD=${build.Password}"
     ]
-    script = "${path.root}/../scripts/Enable-AutoLogon.ps1"
+    script = "${path.root}/../_scripts/core/Prepare-VM.ps1"
   }
 
   provisioner "windows-restart" {
@@ -62,35 +68,16 @@ build {
   }
 
   # =============================================================================================
-  # Core Services and Tools 
+  # PRE Package Section 
   # =============================================================================================
 
   provisioner "powershell" {
     elevated_user     = build.User
     elevated_password = build.Password
-    scripts = [
-      "${path.root}/../scripts/Install-Chocolatey.ps1",
-      "${path.root}/../scripts/Install-WinGet.ps1",
-      "${path.root}/../scripts/Install-WSL2.ps1"
-    ]
-  }
-
-  provisioner "windows-restart" {
-    check_registry = true
-    restart_timeout = "30m"
-  }
-
-  # =============================================================================================
-  # Chocolatey Packages 
-  # =============================================================================================
-
-  provisioner "powershell" {
-    elevated_user     = build.User
-    elevated_password = build.Password
-    inline = [
-      "@() | % `",
-      "{ choco install $_ --yes --no-progress }"
-    ]
+    scripts = concat(
+      ["${path.root}/../_scripts/core/NOOP.ps1"],
+      local.prePackageScripts
+    )
   }
 
   provisioner "windows-restart" {
@@ -101,14 +88,22 @@ build {
   # =============================================================================================
   # WinGet Packages 
   # =============================================================================================
+  
+  provisioner "powershell" {
+    elevated_user     = build.User
+    elevated_password = build.Password
+    script = "${path.root}/../_scripts/Install-WinGet.ps1"
+  }
+
+  provisioner "windows-restart" {
+    check_registry = true
+    restart_timeout = "30m"
+  }
 
   provisioner "powershell" {
     elevated_user     = build.User
     elevated_password = build.Password
-    inline = [
-      "@( 'Google.Chrome', 'Mozilla.Firefox', 'Microsoft.SQLServerManagementStudio' ) `",
-      "| % { winget install $_ --source winget --silent --accept-package-agreements --accept-source-agreements --verbose-logs }"
-    ]
+    inline = [templatefile("${path.root}/../_templates/InstallPackages.pkrtpl.hcl", { packages = local.packages })]
   }
 
   provisioner "windows-restart" {
@@ -117,38 +112,40 @@ build {
   }
 
   # =============================================================================================
-  # Patch Packages 
+  # POST Package Section 
   # =============================================================================================
 
   provisioner "powershell" {
     elevated_user     = build.User
     elevated_password = build.Password
-    scripts = [
-      "${path.root}/../scripts/Patch-DockerDesktop.ps1",
-    ]
+    scripts = concat(
+      ["${path.root}/../_scripts/core/NOOP.ps1"],
+      local.postPackageScripts
+    )
   }
-  
+
   provisioner "windows-restart" {
     check_registry = true
     restart_timeout = "30m"
   }
 
   # =============================================================================================
-  # Custom Packages 
+  # PATCH Script Section 
   # =============================================================================================
 
-  # provisioner "powershell" {
-  #   elevated_user     = build.User
-  #   elevated_password = build.Password
-  #   scripts = [
-  #     "${path.root}/../scripts/Install-DockerDesktop.ps1",
-  #   ]
-  # }
-  
-  # provisioner "windows-restart" {
-  #   check_registry = true
-  #   restart_timeout = "30m"
-  # }
+  provisioner "powershell" {
+    elevated_user     = build.User
+    elevated_password = build.Password
+    scripts = setunion(
+      ["${path.root}/../_scripts/core/NOOP.ps1"],
+      fileset("${path.root}", "../_scripts/patch/*.ps1")
+    ) 
+  }
+
+  provisioner "windows-restart" {
+    check_registry = true
+    restart_timeout = "30m"
+  }
 
   # =============================================================================================
   # Finalize Image - Install Windows Updates and Generalize VM 
@@ -158,13 +155,16 @@ build {
     # https://github.com/rgl/packer-plugin-windows-update
   }
 
+  provisioner "windows-restart" {
+    # force restart to enable AutoLogon 
+    restart_timeout = "30m"
+  }
+
   provisioner "powershell" {
 	  elevated_user     = build.User
     elevated_password = build.Password
-    scripts = [
-      "${path.root}/../scripts/Disable-AutoLogon.ps1",
-      "${path.root}/../scripts/Generalize-VM.ps1"
-    ]
+    timeout = "1h"
+    script  = "${path.root}/../_scripts/core/Generalize-VM.ps1"
   }
 
   # =============================================================================================
@@ -174,9 +174,9 @@ build {
   error-cleanup-provisioner "powershell" {
     elevated_user     = build.User
     elevated_password = build.Password
-    scripts = [
-      "${path.root}/../scripts/Collect-WinGetLogs.ps1",
-      "${path.root}/../scripts/Collect-SysPrepLogs.ps1",
-    ]
+    scripts = setunion(
+      ["${path.root}/../_scripts/core/NOOP.ps1"],
+      fileset("${path.root}", "../_scripts/error/*.ps1")
+    ) 
   }
 }

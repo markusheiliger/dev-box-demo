@@ -28,11 +28,11 @@ while getopts 'g:i:p:o:s:rd' OPT; do
 		i)
 			IMAGE="${OPTARG}" ;;
 		p)
-			PUBLISHER="${OPTARG}" ;;
+			IMAGEPUBLISHER="${OPTARG}" ;;
 		o)
-			OFFER="${OPTARG}" ;;
+			IMAGEOFFER="${OPTARG}" ;;
 		s)
-			SKU="${OPTARG}" ;;
+			IMAGESKU="${OPTARG}" ;;
 		d)  
 			PACKER_LOG='on' ;;
 		*) 
@@ -45,9 +45,6 @@ clear
 buildImage() {
 
 	IMAGENAME=$(basename "$(dirname "$1")")
-	IMAGEOFFER=$(cat $1 | grep 'image_offer' | cut -d '"' -f2)
-	IMAGESKU=$(cat $1 | grep 'image_sku' | cut -d '"' -f2)
-	IMAGEOSTYPE=$(cat $1 | grep 'os_type' | cut -d '"' -f2)
 	IMAGEVERSION=$(date +%Y.%m%d.%H%M)
 
 	GALLERYJSON=$(az resource show --ids $GALLERYID)
@@ -56,69 +53,90 @@ buildImage() {
 	GALLERYRELOCATION=$(echo $GALLERYJSON | jq -r .location)
 	GALLERYSUBSCRIPTION=$(echo $GALLERYID | cut -d / -f3)
 
-	if [ -z "$PUBLISHER" ]; then
-		PUBLISHER="$GALLERYNAME"
+	if [ -z "$IMAGEPUBLISHER" ]; then
+		IMAGEPUBLISHER="$GALLERYNAME"
 	fi
 
-	if [ ! -z "$OFFER" ]; then
-		IMAGEOFFER="$OFFER"
+	if [ -z "$IMAGEOFFER" ]; then
+		IMAGEOFFER=$(json2hcl -reverse < "$1" | jq --raw-output '[.. | ."offer"? | select(. != null)][0]')
 	fi
 
-	if [ ! -z "$SKU" ]; then
-		IMAGESKU="$SKU"
+	if [ -z "$IMAGESKU" ]; then
+		IMAGESKU=$(json2hcl -reverse < "$1" | jq --raw-output '[.. | ."sku"? | select(. != null)][0]')
 	fi
 
 	pushd "$(dirname "$1")" > /dev/null
 
-	displayHeader "Ensure image definition $1" | tee ./build.pkr.log
+	rm -f ./image.pkr.log
 
-	az sig image-definition create \
-		--resource-group $GALLERYRESOURCEGROUP \
-		--gallery-name $GALLERYNAME \
-		--gallery-image-definition $IMAGENAME \
-		--publisher $PUBLISHER \
-		--offer $IMAGEOFFER \
-		--sku $IMAGESKU \
-		--os-type $IMAGEOSTYPE \
-		--os-state Generalized \
-		--hyper-v-generation V2 \
-		--features 'SecurityType=TrustedLaunch' \
-		--only-show-errors | tee -a ./build.pkr.log
+	COUNT=$(az sig image-definition list --subscription $GALLERYSUBSCRIPTION --resource-group $GALLERYRESOURCEGROUP --gallery-name $GALLERYNAME --query "[?name=='$IMAGENAME'] | length(@)")
 
-	displayHeader "Init image $1" | tee -a ./build.pkr.log
+	if [ $COUNT == 0 ]; then
+
+		displayHeader "Create image definition $1" | tee -a ./image.pkr.log
+
+		az sig image-definition create \
+			--subscription $GALLERYSUBSCRIPTION \
+			--resource-group $GALLERYRESOURCEGROUP \
+			--gallery-name $GALLERYNAME \
+			--gallery-image-definition $IMAGENAME \
+			--publisher $IMAGEPUBLISHER \
+			--offer $IMAGEOFFER \
+			--sku $IMAGESKU \
+			--os-type Windows \
+			--os-state Generalized \
+			--hyper-v-generation V2 \
+			--features 'SecurityType=TrustedLaunch' \
+			--only-show-errors | tee -a ./image.pkr.log
+
+	fi
+
+	displayHeader "Init image $1" | tee -a ./image.pkr.log
 
 	packer init \
-		. 2>&1 | tee -a ./build.pkr.log
+		. 2>&1 | tee -a ./image.pkr.log
 
-	displayHeader "Building image $1" | tee -a ./build.pkr.log
+	displayHeader "Building image $1" | tee -a ./image.pkr.log
 
 	packer build \
 		-force \
 		-color=false \
+		-timestamp-ui \
 		-var "galleryName=$GALLERYNAME" \
 		-var "galleryResourceGroup=$GALLERYRESOURCEGROUP" \
 		-var "gallerySubscription=$GALLERYSUBSCRIPTION" \
 		-var "galleryLocation=$GALLERYRELOCATION" \
 		-var "imageName=$IMAGENAME" \
 		-var "imageVersion=$IMAGEVERSION" \
-		. 2>&1 | tee -a ./build.pkr.log
+		. 2>&1 | tee -a ./image.pkr.log
 
 	popd > /dev/null
 }
+
+pushd "/usr/local/bin" > /dev/null
+
+if [ ! -f "/usr/local/bin/json2hcl" ]; then
+	VERSION=$(curl --silent "https://api.github.com/repos/kvz/json2hcl/releases/latest" | jq -r ".tag_name")
+	wget -c "https://github.com/kvz/json2hcl/releases/download/$VERSION/json2hcl_0.1.1_linux_amd64.tar.gz" -q -O - | tar -xz json2hcl
+fi
+
+sudo chmod 755 ./json2hcl 
+
+popd > /dev/null
 
 while read IMAGEPATH; do
 
 	if [[ -z "$IMAGE" || "$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" == "$(echo "$(basename $(dirname $IMAGEPATH))" | tr '[:upper:]' '[:lower:]')" ]]; then
 
-		# enforce our global set of variables on the image to build
-		cp -f ./variables.pkr.hcl $(dirname $IMAGEPATH)/variables.pkr.hcl
+		cp -f ./_core/variables.pkr.hcl $(dirname $IMAGEPATH)/variables.pkr.hcl
+		cp -f ./_core/build.pkr.hcl $(dirname $IMAGEPATH)/build.pkr.hcl
 
 		# start the build process
 		buildImage $IMAGEPATH
 
 	fi
 
-	# do some clean up work
-	rm -rf $(dirname $IMAGEPATH)/variables.pkr.hcl
+	rm -f $(dirname $IMAGEPATH)/variables.pkr.hcl
+	rm -f $(dirname $IMAGEPATH)/build.pkr.hcl
 
-done < <(find . -type f -path './*/build.pkr.hcl')
+done < <(find . -type f -path './*/image.pkr.hcl')

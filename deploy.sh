@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# WORKAROUND BEGIN: https://github.com/Azure/azure-cli/issues/26272
+AZURE_CORE_USE_COMMAND_INDEX=False
+rm -f ~/.azure/commandIndex.json
+# WORKAROUND END
+
 RESET='false'
 
 usage() { 
@@ -106,12 +111,9 @@ resetSubscription() {
 	done; wait 
 
 	for PROJECTID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects' --query [].id -o tsv | dos2unix); do
-
 		PROJECTJSON=$(az devcenter admin project show --ids $PROJECTID)
 		PROJECTNAME=$(echo $PROJECTJSON | jq -r .name)
 		PROJECTRG=$(echo $PROJECTJSON | jq -r .resourceGroup)
-
-
 	done; wait
 
 	for PROJECTID in $(az resource list --subscription $SUBSCRIPTIONID --resource-type 'Microsoft.DevCenter/projects' --query [].id -o tsv | dos2unix); do
