@@ -1,9 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-$ProgressPreference = 'SilentlyContinue'	# hide any progress output
+function Get-IsPacker() {
+	try 	{ return [System.Convert]::ToBoolean($Env:PACKER) }
+	catch 	{ return $false }
+}
 
 function Invoke-FileDownload() {
+
 	param(
 		[Parameter(Mandatory=$true)][string] $url,
 		[Parameter(Mandatory=$false)][string] $name,
@@ -21,16 +25,19 @@ function Invoke-FileDownload() {
 		Expand-Archive -Path $path -DestinationPath $arch -Force
 		return $arch
 	}
-	
+
 	return $path
 }
 
-Write-Host ">>> Downloading Radzio Modbus Master Simulator ..."
-$archive = Invoke-FileDownload -url "https://en.radzio.dxp.pl/modbus-master-simulator/RMMS.zip" -expand $true
+$env:chocolateyUseWindowsCompression = 'false'
 
-$source = Join-Path $archive -ChildPath "RMMS.exe"
-$destination = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) -ChildPath "RMMS.exe"
+if (-not (Get-IsPacker)) {
+	Write-Host ">>> Starting transcript ..."
+	Start-Transcript -Path ([System.IO.Path]::ChangeExtension($MyInvocation.MyCommand.Path, 'log')) -Append | Out-Null
+}
 
-Write-Host ">>> Copying Radzio Modbus Master Simulator to Desktop ..."
-Copy-Item -Path $source -Destination $destination -Force | Out-Null
+Write-Host ">>> Downloading Chocolatey ..."
+$installer = Invoke-FileDownload -url 'https://chocolatey.org/install.ps1'
 
+Write-Host ">>> Installing Chocolatey ..."
+& $installer | Out-Null

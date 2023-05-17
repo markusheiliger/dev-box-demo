@@ -3,7 +3,7 @@
 
 $ProgressPreference = 'SilentlyContinue'	# hide any progress output
 
-function downloadFile() {
+function Invoke-FileDownload() {
 	param(
 		[Parameter(Mandatory=$true)][string] $url,
 		[Parameter(Mandatory=$false)][string] $name,
@@ -31,7 +31,7 @@ Enable-WindowsOptionalFeature `
 	  -Online -All -NoRestart | Out-null
 
 Write-Host ">>> Downloading WSL2 kernel update ..."
-$installer = downloadFile -url "https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi"
+$installer = Invoke-FileDownload -url "https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi"
 
 Write-Host ">>> Installing WSL2 kernel update ..."
 Start-Process msiexec.exe -ArgumentList "/I $installer /quiet /norestart" -NoNewWindow -Wait 

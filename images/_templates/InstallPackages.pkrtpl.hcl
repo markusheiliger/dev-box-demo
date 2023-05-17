@@ -3,6 +3,11 @@ function Get-IsAdmin() {
 	return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Get-IsPacker() {
+	try 	{ return [System.Convert]::ToBoolean($Env:PACKER) }
+	catch 	{ return $false }
+}
+
 function Write-Header() {
 
 	param (
@@ -74,72 +79,46 @@ function Get-Property() {
 	return $value
 }
 
-$packages = '${jsonencode(packages)}' | ConvertFrom-Json
-$machinePackages = @()
+if (-not (Get-IsPacker)) {
+	Write-Host ">>> Starting transcript ..."
+	Start-Transcript -Path ([System.IO.Path]::ChangeExtension($MyInvocation.MyCommand.Path, 'log')) -Append | Out-Null
+}
+
+[array] $packages = '${jsonencode(packages)}' | ConvertFrom-Json
 
 Start-Process -FilePath "winget.exe" -ArgumentList ('source', 'reset', '--force') -NoNewWindow -Wait -ErrorAction SilentlyContinue
 Start-Process -FilePath "winget.exe" -ArgumentList ('source', 'update', '--name', 'winget') -NoNewWindow -Wait -ErrorAction SilentlyContinue
 
-$packages | ForEach-Object {
+foreach ($package in $packages) {
 
-	Write-Header -Package $_.name -Version $_.version -Source $_.source -Arguments ($_.override -join " ").Trim()
+	Write-Header -Package $package.name -Version $package.version -Source $package.source -Arguments ($package.override -join " ").Trim()
 
 	try
 	{
-		$package = $_
-		$scope = ($_ | Get-Property -Name "scope" -DefaultValue "image")
+		$arguments = ("install", ("--id {0}" -f $package.name),	"--exact")
 
-		switch ($scope) {
-			
-			"image" {
-
-				$arguments = ("install", ("--id {0}" -f $package.name),	"--exact")
-
-				if ($_ | Has-Property -Name "version") { 	
-					$arguments += "--version {0}" -f $package.version
-				}
-				
-				$arguments += "--source {0}" -f ($package | Get-Property -Name "source" -DefaultValue "winget")
-
-				if ($_ | Has-Property -Name "override") { 
-					$arguments += "--override `"{0}`"" -f ($package | Get-Property -Name "override") 
-				} else { 
-					$arguments += "--silent" 
-				} 
-
-				$arguments += "--accept-package-agreements"
-				$arguments += "--accept-source-agreements"
-				$arguments += "--verbose-logs"
-
-				$process = Start-Process -FilePath "winget.exe" -ArgumentList $arguments -NoNewWindow -Wait -PassThru
-				
-				if ($process.ExitCode -ne 0) { exit $process.ExitCode }
-			}
-
-			"machine" {
-				
-				Write-Host "Register package '$_' for ActiveSetup installation"
-				$machinePackages += $package
-			}
-
-			default { 
-				
-				throw "The scope '$scope' is not supported"
-			}
+		if ($package | Has-Property -Name "version") { 	
+			$arguments += "--version {0}" -f $package.version
 		}
+		
+		$arguments += "--source {0}" -f ($package | Get-Property -Name "source" -DefaultValue "winget")
+
+		if ($package | Has-Property -Name "override") { 
+			$arguments += "--override `"{0}`"" -f ($package | Get-Property -Name "override") 
+		} else { 
+			$arguments += "--silent" 
+		} 
+
+		$arguments += "--accept-package-agreements"
+		$arguments += "--accept-source-agreements"
+		$arguments += "--verbose-logs"
+
+		$process = Start-Process -FilePath "winget.exe" -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+		
+		if ($process.ExitCode -ne 0) { exit $process.ExitCode }
 	}
 	finally
 	{
-		Write-Footer -Package $_.name 
+		Write-Footer -Package $package.name 
 	}
-
-}
-
-if ($machinePackages.count -gt 0 -and (Get-IsAdmin)) {
-
-	$packerFolder = [System.Environment]::ExpandEnvironmentVariables("%ProgramFiles%\Packer")
-	New-Item -Path $packerFolder -ItemType Directory -Force | Out-Null
-
-	$packagesFile = Join-Path -Path $packerFolder -ChildPath "packages.json"
-	$machinePackages | ConvertTo-Json | Out-File -FilePath $packagesFile
 }

@@ -3,7 +3,7 @@
 
 $ProgressPreference = 'SilentlyContinue'	# hide any progress output
 
-function downloadFile() {
+function Invoke-FileDownload() {
 	param(
 		[Parameter(Mandatory=$true)][string] $url,
 		[Parameter(Mandatory=$false)][string] $name,
@@ -28,7 +28,7 @@ function downloadFile() {
 $7zip = [System.Environment]::ExpandEnvironmentVariables("%programfiles%\7-Zip\7z.exe")
 
 Write-Host ">>> Downloading WuT COM Redirector ..."
-$archive = downloadFile -url "https://www.wut.de/download/tools/e-00111-ww-swww-441.exe" -name "COMRedirector.zip"
+$archive = Invoke-FileDownload -url "https://www.wut.de/download/tools/e-00111-ww-swww-441.exe" -name "COMRedirector.zip"
 $extract = Join-Path (Split-Path -Path $archive) -ChildPath ([io.path]::GetFileNameWithoutExtension($archive))
 
 if (-not(Test-Path $7zip -PathType Leaf)) {

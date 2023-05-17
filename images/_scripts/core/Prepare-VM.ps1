@@ -18,11 +18,3 @@ Write-Host ">>> Remove existing SysPrep logs ..."
 Remove-Item -Path $env:SystemRoot\Panther -Recurse -Force | Out-Null
 Remove-Item -Path $env:SystemRoot\System32\Sysprep\Panther -Recurse -Force | Out-Null
 Remove-Item -Path $Env:SystemRoot\System32\Sysprep\unattend.xml -Force | Out-Null
-
-$regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Winget-AutoUpdate" 
-$regKey = Get-Item $regPath -ErrorAction SilentlyContinue
-
-if ($regKey) {
-	Write-Host ">>> Disable WinGet AutoUpdate ..."
-	New-ItemProperty $regPath -Name WAU_DisableAutoUpdate -Value 1 -Force | Out-Null
-}

@@ -2,11 +2,30 @@
 locals {
 
     image = {
-      publisher = "MicrosoftWindowsDesktop"
-      offer = "windows-ent-cpc"
-      sku = "win11-22h2-ent-cpc-os"
-      version = "latest"
+
+	  	name = "${basename(abspath(path.root))}"
+  		version = "${formatdate("YYYY.MMDD.hhmm", timestamp())}"
+		regions = [ "West Europe" ]
+
+		publisher = "CarmadaRnD"
+		offer = "CarmadaDev"
+		sku = "win11-mobile-devbox"
+
+		base = {
+
+			publisher = "MicrosoftWindowsDesktop"
+			offer = "windows-ent-cpc"
+			sku = "win11-22h2-ent-cpc-os"
+			version = "latest"
+		}
     }
+
+	gallery = {
+
+		subscription = "f9fcf631-fa8d-4ea2-8298-61b43220a3d1"
+		resourceGroup = "ORG-CarmadaRnD"
+		name = "CarmadaRnD"
+	}
 
     prePackageScripts = [
 	    "${path.root}/../_scripts/Install-WSL2.ps1"
@@ -15,18 +34,21 @@ locals {
     packages = [
 
 		# {
-		# 	name = ""
-		# 	version = ""
-		# 	source = ""
+		# 	name = ""					< MANDATORY
+		#  	scope = "[machine|user]" 	< MANDATORY
+		# 	version = ""				< DFAULT: latest
+		# 	source = ""					< DFAULT: winget
 		# 	override = []
 		# }
 
 		{
 			name = "Microsoft.PowerShell"
+			scope = "machine"
 		},
 
 		{
 			name = "Microsoft.VisualStudioCode"
+			scope = "machine"
 			override = [
 				"/VERYSILENT",
 				"/NORESTART",
@@ -35,6 +57,7 @@ locals {
 		},
 		{
 			name = "Microsoft.VisualStudio.2022.Enterprise"
+			scope = "machine"
 			override = [
 				# https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-enterprise
 				"--add", "Microsoft.VisualStudio.Workload.CoreEditor", 
@@ -51,13 +74,16 @@ locals {
 		},
 		{
 			name = "Google.AndroidStudio"
+			scope = "machine"
 		},
 		{
 			name = "Wondershare.MirrorGo"
+			scope = "machine"
 		},
 
 		{
 			name = "Git.Git"
+			scope = "machine"
 			override = [
 				"/VERYSILENT",
 				"/SUPPRESSMSGBOXES",
@@ -72,30 +98,38 @@ locals {
 		},
 		{
 			name = "GitHub.cli"
+			scope = "machine"
 		},
 		{
 			name = "GitHub.GitHubDesktop"
+			scope = "machine"
 		},
 		
 		{
 			name = "Docker.DockerDesktop"
+			scope = "machine"
 		},
 
 		{
 			name = "Microsoft.Bicep"
+			scope = "machine"
 		},
 		{
 			name = "Microsoft.AzureCLI"
+			scope = "machine"
 		},
 		{
 			name = "Microsoft.Azure.StorageExplorer"
+			scope = "machine"
 		},
 
 		{
 			name = "Google.Chrome"
+			scope = "machine"
 		},
 		{
 			name = "Mozilla.Firefox"
+			scope = "machine"
 		}
     ]
 

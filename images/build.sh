@@ -44,52 +44,52 @@ clear
 
 buildImage() {
 
-	IMAGENAME=$(basename "$(dirname "$1")")
-	IMAGEVERSION=$(date +%Y.%m%d.%H%M)
+	# IMAGENAME=$(basename "$(dirname "$1")")
+	# IMAGEVERSION=$(date +%Y.%m%d.%H%M)
 
-	GALLERYJSON=$(az resource show --ids $GALLERYID)
-	GALLERYNAME=$(echo $GALLERYJSON | jq -r .name)
-	GALLERYRESOURCEGROUP=$(echo $GALLERYJSON | jq -r .resourceGroup)
-	GALLERYRELOCATION=$(echo $GALLERYJSON | jq -r .location)
-	GALLERYSUBSCRIPTION=$(echo $GALLERYID | cut -d / -f3)
+	# GALLERYJSON=$(az resource show --ids $GALLERYID)
+	# GALLERYNAME=$(echo $GALLERYJSON | jq -r .name)
+	# GALLERYRESOURCEGROUP=$(echo $GALLERYJSON | jq -r .resourceGroup)
+	# GALLERYRELOCATION=$(echo $GALLERYJSON | jq -r .location)
+	# GALLERYSUBSCRIPTION=$(echo $GALLERYID | cut -d / -f3)
 
-	if [ -z "$IMAGEPUBLISHER" ]; then
-		IMAGEPUBLISHER="$GALLERYNAME"
-	fi
+	# if [ -z "$IMAGEPUBLISHER" ]; then
+	# 	IMAGEPUBLISHER="$GALLERYNAME"
+	# fi
 
-	if [ -z "$IMAGEOFFER" ]; then
-		IMAGEOFFER=$(json2hcl -reverse < "$1" | jq --raw-output '[.. | ."offer"? | select(. != null)][0]')
-	fi
+	# if [ -z "$IMAGEOFFER" ]; then
+	# 	IMAGEOFFER=$(json2hcl -reverse < "$1" | jq --raw-output '[.. | ."offer"? | select(. != null)][0]')
+	# fi
 
-	if [ -z "$IMAGESKU" ]; then
-		IMAGESKU=$(json2hcl -reverse < "$1" | jq --raw-output '[.. | ."sku"? | select(. != null)][0]')
-	fi
+	# if [ -z "$IMAGESKU" ]; then
+	# 	IMAGESKU=$(json2hcl -reverse < "$1" | jq --raw-output '[.. | ."sku"? | select(. != null)][0]')
+	# fi
 
 	pushd "$(dirname "$1")" > /dev/null
 
 	rm -f ./image.pkr.log
 
-	COUNT=$(az sig image-definition list --subscription $GALLERYSUBSCRIPTION --resource-group $GALLERYRESOURCEGROUP --gallery-name $GALLERYNAME --query "[?name=='$IMAGENAME'] | length(@)")
+	# COUNT=$(az sig image-definition list --subscription $GALLERYSUBSCRIPTION --resource-group $GALLERYRESOURCEGROUP --gallery-name $GALLERYNAME --query "[?name=='$IMAGENAME'] | length(@)")
 
-	if [ $COUNT == 0 ]; then
+	# if [ $COUNT == 0 ]; then
 
-		displayHeader "Create image definition $1" | tee -a ./image.pkr.log
+	# 	displayHeader "Create image definition $1" | tee -a ./image.pkr.log
 
-		az sig image-definition create \
-			--subscription $GALLERYSUBSCRIPTION \
-			--resource-group $GALLERYRESOURCEGROUP \
-			--gallery-name $GALLERYNAME \
-			--gallery-image-definition $IMAGENAME \
-			--publisher $IMAGEPUBLISHER \
-			--offer $IMAGEOFFER \
-			--sku $IMAGESKU \
-			--os-type Windows \
-			--os-state Generalized \
-			--hyper-v-generation V2 \
-			--features 'SecurityType=TrustedLaunch' \
-			--only-show-errors | tee -a ./image.pkr.log
+	# 	az sig image-definition create \
+	# 		--subscription $GALLERYSUBSCRIPTION \
+	# 		--resource-group $GALLERYRESOURCEGROUP \
+	# 		--gallery-name $GALLERYNAME \
+	# 		--gallery-image-definition $IMAGENAME \
+	# 		--publisher $IMAGEPUBLISHER \
+	# 		--offer $IMAGEOFFER \
+	# 		--sku $IMAGESKU \
+	# 		--os-type Windows \
+	# 		--os-state Generalized \
+	# 		--hyper-v-generation V2 \
+	# 		--features 'SecurityType=TrustedLaunch' \
+	# 		--only-show-errors | tee -a ./image.pkr.log
 
-	fi
+	# fi
 
 	displayHeader "Init image $1" | tee -a ./image.pkr.log
 
@@ -102,34 +102,37 @@ buildImage() {
 		-force \
 		-color=false \
 		-timestamp-ui \
-		-var "galleryName=$GALLERYNAME" \
-		-var "galleryResourceGroup=$GALLERYRESOURCEGROUP" \
-		-var "gallerySubscription=$GALLERYSUBSCRIPTION" \
-		-var "galleryLocation=$GALLERYRELOCATION" \
-		-var "imageName=$IMAGENAME" \
-		-var "imageVersion=$IMAGEVERSION" \
 		. 2>&1 | tee -a ./image.pkr.log
+
+		# -var "galleryName=$GALLERYNAME" \
+		# -var "galleryResourceGroup=$GALLERYRESOURCEGROUP" \
+		# -var "gallerySubscription=$GALLERYSUBSCRIPTION" \
+		# -var "galleryLocation=$GALLERYRELOCATION" \
+		# -var "imageName=$IMAGENAME" \
+		# -var "imageVersion=$IMAGEVERSION" \
+		# . 2>&1 | tee -a ./image.pkr.log
 
 	popd > /dev/null
 }
 
-pushd "/usr/local/bin" > /dev/null
+# pushd "/usr/local/bin" > /dev/null
 
-if [ ! -f "/usr/local/bin/json2hcl" ]; then
-	VERSION=$(curl --silent "https://api.github.com/repos/kvz/json2hcl/releases/latest" | jq -r ".tag_name")
-	wget -c "https://github.com/kvz/json2hcl/releases/download/$VERSION/json2hcl_0.1.1_linux_amd64.tar.gz" -q -O - | tar -xz json2hcl
-fi
+# if [ ! -f "/usr/local/bin/json2hcl" ]; then
+# 	VERSION=$(curl --silent "https://api.github.com/repos/kvz/json2hcl/releases/latest" | jq -r ".tag_name")
+# 	wget -c "https://github.com/kvz/json2hcl/releases/download/$VERSION/json2hcl_0.1.1_linux_amd64.tar.gz" -q -O - | tar -xz json2hcl
+# fi
 
-sudo chmod 755 ./json2hcl 
+# sudo chmod 755 ./json2hcl 
 
-popd > /dev/null
+# popd > /dev/null
 
 while read IMAGEPATH; do
 
 	if [[ -z "$IMAGE" || "$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" == "$(echo "$(basename $(dirname $IMAGEPATH))" | tr '[:upper:]' '[:lower:]')" ]]; then
 
-		cp -f ./_core/variables.pkr.hcl $(dirname $IMAGEPATH)/variables.pkr.hcl
+		cp -f ./_core/config.pkr.hcl $(dirname $IMAGEPATH)/config.pkr.hcl
 		cp -f ./_core/build.pkr.hcl $(dirname $IMAGEPATH)/build.pkr.hcl
+		cp -f ./_core/variables.pkr.hcl $(dirname $IMAGEPATH)/variables.pkr.hcl
 
 		# start the build process
 		buildImage $IMAGEPATH
@@ -138,5 +141,6 @@ while read IMAGEPATH; do
 
 	rm -f $(dirname $IMAGEPATH)/variables.pkr.hcl
 	rm -f $(dirname $IMAGEPATH)/build.pkr.hcl
+	rm -f $(dirname $IMAGEPATH)/config.pkr.hcl
 
 done < <(find . -type f -path './*/image.pkr.hcl')

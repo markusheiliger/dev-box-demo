@@ -3,7 +3,7 @@
 
 $ProgressPreference = 'SilentlyContinue'	# hide any progress output
 
-function downloadFile() {
+function Invoke-FileDownload() {
 	param(
 		[Parameter(Mandatory=$true)][string] $url,
 		[Parameter(Mandatory=$false)][string] $name,
@@ -26,7 +26,7 @@ function downloadFile() {
 }
 
 Write-Host ">>> Downloading FabulaTech USB Server ..."
-$installer = downloadFile -url "https://www.fabulatech.com/usb-for-remote-desktop-server-64bit.msi"
+$installer = Invoke-FileDownload -url "https://www.fabulatech.com/usb-for-remote-desktop-server-64bit.msi"
 
 Write-Host ">>> Installing FabulaTech USB Server ..."
 Start-Process msiexec.exe -ArgumentList "/I $installer /quiet /norestart" -NoNewWindow -Wait 

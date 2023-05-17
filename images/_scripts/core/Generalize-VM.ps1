@@ -22,14 +22,6 @@ finally {
 	}
 }
 
-$regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Winget-AutoUpdate" 
-$regKey = Get-Item $regPath -ErrorAction SilentlyContinue
-
-if ($regKey) {
-	Write-Host ">>> Enable WinGet AutoUpdate ..."
-	New-ItemProperty $regPath -Name WAU_DisableAutoUpdate -Value 0 -Force | Out-Null
-}
-
 Write-Host ">>> Disable AutoLogon for elevated task processing ..."
 Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon
 Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUsername
