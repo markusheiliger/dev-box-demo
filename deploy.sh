@@ -64,7 +64,7 @@ purgeResources() {
 	# purge subscription scoped resources
 	# ------------------------------------------------------------------------------
 
-	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --resource-type vault --query '[].name' -o tsv 2>/dev/null | dos2unix); do
+	for KEYVAULT in $(az keyvault list-deleted --subscription $SUBSCRIPTIONID --resource-type vault --query "[?!(starts_with(name, 'pkrkv'))].name" -o tsv 2>/dev/null | dos2unix); do
 		echo "$SUBSCRIPTIONID - Purging deleted key vault '$KEYVAULT' ..." 
 		az keyvault purge --subscription $SUBSCRIPTIONID --name $KEYVAULT -o none & 
 	done
